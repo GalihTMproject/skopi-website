@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SKOPI - Sistem Kinerja Operasi dan Pemeliharaan Irigasi</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .container {
+            display: flex;
+            min-height: calc(100vh - 100px);
+        }
+
+        .sidebar {
+            width: 250px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            padding: 1rem 0;
+        }
+
+        .menu-item {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .menu-item:hover {
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+        }
+
+        .menu-item.active {
+            background-color: #3498db;
+            color: white;
+            border-left: 4px solid #2980b9;
+        }
+
+        .content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .content-section {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card h4 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card p {
+            opacity: 0.9;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        #dashboardMap, #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 10px;
+            border: 2px solid #ddd;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                order: 2;
+            }
+            
+            .content {
+                order: 1;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fas fa-tint"></i> SKOPI</h1>
+        <p>Sistem Kinerja Operasi dan Pemeliharaan Irigasi - DI. Molek</p>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="menu-item active" onclick="showSection('dashboard')">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </div>
+            <div class="menu-item" onclick="showSection('profil')">
+                <i class="fas fa-info-circle"></i> Profil Jaringan Irigasi
+            </div>
+            <div class="menu-item" onclick="showSection('peta')">
+                <i class="fas fa-map"></i> Peta Layout
+            </div>
+            <div class="menu-item" onclick="showSection('skema')">
+                <i class="fas fa-project-diagram"></i> Skema Irigasi
+            </div>
+            <div class="menu-item" onclick="showSection('tenaga')">
+                <i class="fas fa-users"></i> Tenaga dan Absensi
+            </div>
+            <div class="menu-item" onclick="showSection('progres')">
+                <i class="fas fa-chart-line"></i> Bobot Progres Harian
+            </div>
+            <div class="menu-item" onclick="showSection('kurva')">
+                <i class="fas fa-chart-area"></i> Kurva S Kinerja Bulanan
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>15</h4>
+                        <p>Total Petugas</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>85%</h4>
+                        <p>Tingkat Kehadiran</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>1,250</h4>
+                        <p>Luas Layanan (Ha)</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>92%</h4>
+                        <p>Kinerja Bulanan</p>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <h3>Ringkasan Sistem</h3>
+                        <p>Selamat datang di SKOPI (Sistem Kinerja Operasi dan Pemeliharaan Irigasi) DI. Molek. 
+                        Sistem ini membantu dalam monitoring dan evaluasi kinerja operasional jaringan irigasi.</p>
+                        
+                        <div style="margin-top: 2rem;">
+                            <h4>Status Operasional Hari Ini:</h4>
+                            <ul style="margin-top: 1rem; padding-left: 2rem;">
+                                <li>✅ Pintu Air Utama: Normal</li>
+                                <li>✅ Saluran Primer: Berfungsi Baik</li>
+                                <li>⚠️ Saluran Sekunder Blok C: Perlu Pembersihan</li>
+                                <li>✅ Bangunan Bagi: Normal</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Peta Lokasi DI. Molek</h3>
+                        <div id="dashboardMap"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profil Section -->
+            <div id="profil" class="content-section">
+                <div class="card">
+                    <h3>Profil DI. Molek</h3>
+                    <p>Informasi lengkap tentang Daerah Irigasi Molek akan ditampilkan di sini.</p>
+                </div>
+            </div>
+
+            <!-- Peta Section -->
+            <div id="peta" class="content-section">
+                <div class="card">
+                    <h3>Peta Layout DI. Molek</h3>
+                    <div id="map"></div>
+                </div>
+            </div>
+
+            <!-- Skema Section -->
+            <div id="skema" class="content-section">
+                <div class="card">
+                    <h3>Skema Irigasi</h3>
+                    <p>Skema jaringan irigasi akan ditampilkan di sini.</p>
+                </div>
+            </div>
+
+            <!-- Tenaga Section -->
+            <div id="tenaga" class="content-section">
+                <div class="card">
+                    <h3>Tenaga dan Absensi</h3>
+                    <p>Data tenaga kerja dan absensi akan ditampilkan di sini.</p>
+                </div>
+            </div>
+
+            <!-- Progres Section -->
+            <div id="progres" class="content-section">
+                <div class="card">
+                    <h3>Bobot Progres Harian</h3>
+                    <p>Grafik progres harian akan ditampilkan di sini.</p>
+                </div>
+            </div>
+
+            <!-- Kurva Section -->
+            <div id="kurva" class="content-section">
+                <div class="card">
+                    <h3>Kurva S Kinerja Bulanan</h3>
+                    <p>Kurva S kinerja bulanan akan ditampilkan di sini.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Menu Navigation
+        function showSection(sectionId) {
+            // Hide all sections
+            const sections = document.querySelectorAll('.content-section');
+            sections.forEach(section => section.classList.remove('active'));
+            
+            // Remove active class from all menu items
+            const menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach(item => item.classList.remove('active'));
+            
+            // Show selected section
+            document.getElementById(sectionId).classList.add('active');
+            
+            // Add active class to clicked menu item
+            event.target.closest('.menu-item').classList.add('active');
+            
+            // Initialize maps when sections are shown
+            if (sectionId === 'dashboard') {
+                setTimeout(initDashboardMap, 100);
+            } else if (sectionId === 'peta') {
+                setTimeout(initMainMap, 100);
+            }
+        }
+
+        // Initialize Dashboard Map
+        let dashboardMap;
+        function initDashboardMap() {
+            if (dashboardMap) return;
+            
+            dashboardMap = L.map('dashboardMap').setView([-8.1, 112.6], 12);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(dashboardMap);
+            
+            // Add marker for DI Molek
+            L.marker([-8.1, 112.6])
+                .addTo(dashboardMap)
+                .bindPopup('<b>DI. Molek</b><br>Daerah Irigasi Molek<br>Kabupaten Malang')
+                .openPopup();
+        }
+
+        // Initialize Main Map
+        let mainMap;
+        function initMainMap() {
+            if (mainMap) return;
+            
+            mainMap = L.map('map').setView([-8.1, 112.6], 13);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(mainMap);
+            
+            // Add irrigation infrastructure markers
+            const locations = [
+                {lat: -8.1, lng: 112.6, name: 'Bendung Utama', type: 'bendung'},
+                {lat: -8.095, lng: 112.605, name: 'Bangunan Bagi 1', type: 'bangunan'},
+                {lat: -8.105, lng: 112.
