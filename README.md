@@ -12,7 +12,7 @@ Website monitoring dan evaluasi kinerja operasional jaringan irigasi DI. Molek.
 - Kurva S kinerja bulanan
 
 ## Demo
-Kunjungi: [https://username.github.io/skopi-website](https://galihtmproject.github.io/skopi-website/)
+Kunjungi: [https://galihtmproject.github.io/skopi-website/](https://galihtmproject.github.io/skopi-website/)
 
 ## Teknologi
 - HTML5
