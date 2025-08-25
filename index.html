@@ -405,3 +405,44 @@
             <div id="peta" class="content-section">
                 <div class="card">
                     <h3>Peta Layout DI. Mo
+
+            // Di bagian bawah file HTML, sebelum </body>
+<script>
+    // Fungsi utama untuk switching menu
+    function showSection(sectionId) {
+        // Hide semua section
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        
+        // Show section yang dipilih
+        document.getElementById(sectionId).classList.add('active');
+        
+        // Update menu aktif
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        event.target.classList.add('active');
+        
+        // Eksekusi skript spesifik
+        executeMenuScript(sectionId);
+    }
+    
+    function executeMenuScript(menuId) {
+        switch(menuId) {
+            case 'dashboard':
+                initDashboard();
+                break;
+            case 'peta':
+                setTimeout(initMapSection, 100); // Delay untuk DOM ready
+                break;
+            // Tambahkan case lainnya
+        }
+    }
+    
+    // Inisialisasi saat halaman dimuat
+    document.addEventListener('DOMContentLoaded', function() {
+        initDashboard(); // Load dashboard pertama kali
+    });
+</script>
+            
