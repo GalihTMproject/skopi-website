@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SKOPI - Sistem Kinerja Operasi dan Pemeliharaan Irigasi</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
@@ -129,18 +129,113 @@
             opacity: 0.9;
         }
 
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin-bottom: 2rem;
+        #map {
+            height: 400px;
+            border-radius: 10px;
+            margin: 1rem 0;
         }
 
-        #dashboardMap, #map {
-            height: 400px;
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
             width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .status-hadir {
+            background-color: #27ae60;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+
+        .status-tidak-hadir {
+            background-color: #e74c3c;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+
+        .status-izin {
+            background-color: #f39c12;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+
+        .progress-bar {
+            background-color: #ecf0f1;
             border-radius: 10px;
-            border: 2px solid #ddd;
+            overflow: hidden;
+            height: 20px;
+            margin: 0.5rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            transition: width 0.3s ease;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 1rem 0;
+        }
+
+        .irrigation-schema {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .schema-diagram {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #3498db;
+            border-radius: 10px;
+            background: #f8f9fa;
+            padding: 2rem;
+            margin: 1rem 0;
+        }
+
+        .schema-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .schema-box {
+            background: #3498db;
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .schema-arrow {
+            font-size: 2rem;
+            color: #3498db;
         }
 
         @media (max-width: 768px) {
@@ -160,385 +255,10 @@
             .stats-grid {
                 grid-template-columns: 1fr;
             }
-
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
         }
     </style>
 </head>
-<script>
-// Global Variables untuk Maps
-let dashboardMap, mainMap;
-let layerGroups = {};
-let currentActiveLayer = 'all';
-let markers = [];
-let polylines = [];
-let polygons = [];
-
-// Custom Icons untuk berbagai infrastruktur
-const customIcons = {
-    bendung: L.divIcon({
-        html: '<div style="background: #2980b9; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-water"></i></div>',
-        iconSize: [30, 30],
-        className: 'custom-div-icon'
-    }),
-    bangunanBagi: L.divIcon({
-        html: '<div style="background: #27ae60; color: white; border-radius: 50%; width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-building"></i></div>',
-        iconSize: [25, 25],
-        className: 'custom-div-icon'
-    }),
-    bangunanSadap: L.divIcon({
-        html: '<div style="background: #f39c12; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-cog"></i></div>',
-        iconSize: [20, 20],
-        className: 'custom-div-icon'
-    }),
-    pintuAir: L.divIcon({
-        html: '<div style="background: #e74c3c; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-door-open"></i></div>',
-        iconSize: [22, 22],
-        className: 'custom-div-icon'
-    }),
-    pos: L.divIcon({
-        html: '<div style="background: #9b59b6; color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-map-marker-alt"></i></div>',
-        iconSize: [18, 18],
-        className: 'custom-div-icon'
-    })
-};
-
-// Data Infrastruktur Irigasi DI. Molek
-const irrigationData = {
-    bendung: [
-        {
-            lat: -8.1000, lng: 112.6000,
-            name: 'Bendung Utama Molek',
-            details: {
-                tipe: 'Bendung Tetap',
-                lebar: '45 m',
-                tinggi: '3.5 m',
-                kondisi: 'Baik',
-                debit: '2.5 m³/s',
-                tahunBangun: '1985',
-                kapasitas: '5.0 m³/s'
-            }
-        }
-    ],
-    bangunanBagi: [
-        {
-            lat: -8.0950, lng: 112.6050,
-            name: 'Bangunan Bagi Molek 1',
-            details: {
-                kode: 'BG-01',
-                debit: '1.2 m³/s',
-                kondisi: 'Baik',
-                jumlahPintu: '3 unit',
-                arahAliran: 'Kanan-Kiri'
-            }
-        },
-        {
-            lat: -8.1050, lng: 112.6150,
-            name: 'Bangunan Bagi Molek 2',
-            details: {
-                kode: 'BG-02',
-                debit: '0.8 m³/s',
-                kondisi: 'Baik',
-                jumlahPintu: '2 unit',
-                arahAliran: 'Kanan'
-            }
-        },
-        {
-            lat: -8.0850, lng: 112.6250,
-            name: 'Bangunan Bagi Molek 3',
-            details: {
-                kode: 'BG-03',
-                debit: '0.5 m³/s',
-                kondisi: 'Sedang',
-                jumlahPintu: '2 unit',
-                arahAliran: 'Kiri'
-            }
-        }
-    ],
-    bangunanSadap: [
-        {
-            lat: -8.0920, lng: 112.6080,
-            name: 'Sadap Blok A1',
-            details: {
-                kode: 'SD-A1',
-                debit: '0.3 m³/s',
-                kondisi: 'Baik',
-                luasLayanan: '45 Ha'
-            }
-        },
-        {
-            lat: -8.0980, lng: 112.6120,
-            name: 'Sadap Blok A2',
-            details: {
-                kode: 'SD-A2',
-                debit: '0.4 m³/s',
-                kondisi: 'Baik',
-                luasLayanan: '52 Ha'
-            }
-        },
-        {
-            lat: -8.1020, lng: 112.6180,
-            name: 'Sadap Blok B1',
-            details: {
-                kode: 'SD-B1',
-                debit: '0.25 m³/s',
-                kondisi: 'Perlu Perbaikan',
-                luasLayanan: '38 Ha'
-            }
-        },
-        {
-            lat: -8.0880, lng: 112.6220,
-            name: 'Sadap Blok B2',
-            details: {
-                kode: 'SD-B2',
-                debit: '0.35 m³/s',
-                kondisi: 'Baik',
-                luasLayanan: '48 Ha'
-            }
-        }
-    ],
-    pintuAir: [
-        {
-            lat: -8.0970, lng: 112.6070,
-            name: 'Pintu Air PA-01',
-            details: {
-                kode: 'PA-01',
-                tipe: 'Pintu Sorong',
-                kondisi: 'Baik',
-                status: 'Terbuka 75%'
-            }
-        },
-        {
-            lat: -8.1010, lng: 112.6140,
-            name: 'Pintu Air PA-02',
-            details: {
-                kode: 'PA-02',
-                tipe: 'Pintu Klep',
-                kondisi: 'Baik',
-                status: 'Terbuka 50%'
-            }
-        }
-    ],
-    pos: [
-        {
-            lat: -8.0930, lng: 112.6060,
-            name: 'Pos Jaga Utama',
-            details: {
-                kode: 'PJ-01',
-                petugas: 'Pak Slamet',
-                shift: '24 Jam',
-                fasilitas: 'Radio, Genset'
-            }
-        },
-        {
-            lat: -8.1030, lng: 112.6170,
-            name: 'Pos Jaga Sekunder',
-            details: {
-                kode: 'PJ-02',
-                petugas: 'Pak Budi',
-                shift: 'Siang',
-                fasilitas: 'Radio'
-            }
-        }
-    ]
-};
-
-// Data Saluran (Polylines)
-const channelData = [
-    {
-        name: 'Saluran Primer Molek',
-        coordinates: [
-            [-8.1000, 112.6000],
-            [-8.0950, 112.6050],
-            [-8.0900, 112.6100],
-            [-8.0850, 112.6150],
-            [-8.0800, 112.6200]
-        ],
-        style: { color: '#3498db', weight: 5, opacity: 0.8 },
-        details: {
-            panjang: '8.5 km',
-            lebar: '3.5 m',
-            kondisi: 'Baik',
-            kapasitas: '2.5 m³/s'
-        }
-    },
-    {
-        name: 'Saluran Sekunder Kanan',
-        coordinates: [
-            [-8.0950, 112.6050],
-            [-8.0920, 112.6080],
-            [-8.0890, 112.6110],
-            [-8.0860, 112.6140]
-        ],
-        style: { color: '#27ae60', weight: 4, opacity: 0.8 },
-        details: {
-            panjang: '4.2 km',
-            lebar: '2.0 m',
-            kondisi: 'Baik',
-            kapasitas: '1.2 m³/s'
-        }
-    },
-    {
-        name: 'Saluran Sekunder Kiri',
-        coordinates: [
-            [-8.0950, 112.6050],
-            [-8.0980, 112.6120],
-            [-8.1010, 112.6150],
-            [-8.1040, 112.6180]
-        ],
-        style: { color: '#f39c12', weight: 4, opacity: 0.8 },
-        details: {
-            panjang: '3.8 km',
-            lebar: '1.8 m',
-            kondisi: 'Perlu Pembersihan',
-            kapasitas: '0.8 m³/s'
-        }
-    },
-    {
-        name: 'Saluran Tersier A',
-        coordinates: [
-            [-8.0920, 112.6080],
-            [-8.0900, 112.6090],
-            [-8.0880, 112.6100],
-            [-8.0860, 112.6110]
-        ],
-        style: { color: '#e74c3c', weight: 3, opacity: 0.7 },
-        details: {
-            panjang: '2.1 km',
-            lebar: '1.2 m',
-            kondisi: 'Baik',
-            kapasitas: '0.3 m³/s'
-        }
-    },
-    {
-        name: 'Saluran Tersier B',
-        coordinates: [
-            [-8.0980, 112.6120],
-            [-8.1000, 112.6130],
-            [-8.1020, 112.6140],
-            [-8.1040, 112.6150]
-        ],
-        style: { color: '#9b59b6', weight: 3, opacity: 0.7 },
-        details: {
-            panjang: '1.9 km',
-            lebar: '1.0 m',
-            kondisi: 'Sedang',
-            kapasitas: '0.25 m³/s'
-        }
-    }
-];
-
-// Data Area Sawah (Polygons)
-const riceFieldData = [
-    {
-        name: 'Blok Sawah A1',
-        coordinates: [
-            [-8.0900, 112.6100],
-            [-8.0920, 112.6120],
-            [-8.0940, 112.6110],
-            [-8.0920, 112.6090]
-        ],
-        style: { 
-            color: '#27ae60', 
-            fillColor: '#2ecc71', 
-            fillOpacity: 0.4,
-            weight: 2
-        },
-        details: {
-            luas: '125 Ha',
-            status: 'Masa Tanam',
-            jenisPadi: 'IR64',
-            musimTanam: 'MT I 2024',
-            produktivitas: '6.2 ton/ha'
-        }
-    },
-    {
-        name: 'Blok Sawah A2',
-        coordinates: [
-            [-8.0940, 112.6110],
-            [-8.0960, 112.6130],
-            [-8.0980, 112.6120],
-            [-8.0960, 112.6100]
-        ],
-        style: { 
-            color: '#27ae60', 
-            fillColor: '#2ecc71', 
-            fillOpacity: 0.4,
-            weight: 2
-        },
-        details: {
-            luas: '98 Ha',
-            status: 'Persiapan Lahan',
-            jenisPadi: 'Ciherang',
-            musimTanam: 'MT I 2024',
-            produktivitas: '5.8 ton/ha'
-        }
-    },
-    {
-        name: 'Blok Sawah B1',
-        coordinates: [
-            [-8.1000, 112.6130],
-            [-8.1020, 112.6150],
-            [-8.1040, 112.6140],
-            [-8.1020, 112.6120]
-        ],
-        style: { 
-            color: '#f39c12', 
-            fillColor: '#f1c40f', 
-            fillOpacity: 0.4,
-            weight: 2
-        },
-        details: {
-            luas: '87 Ha',
-            status: 'Panen',
-            jenisPadi: 'Inpari 32',
-            musimTanam: 'MT III 2023',
-            produktivitas: '6.5 ton/ha'
-        }
-    },
-    {
-        name: 'Blok Sawah B2',
-        coordinates: [
-            [-8.1040, 112.6140],
-            [-8.1060, 112.6160],
-            [-8.1080, 112.6150],
-            [-8.1060, 112.6130]
-        ],
-        style: { 
-            color: '#e67e22', 
-            fillColor: '#e74c3c', 
-            fillOpacity: 0.3,
-            weight: 2
-        },
-        details: {
-            luas: '76 Ha',
-            status: 'Bera',
-            jenisPadi: '-',
-            musimTanam: 'Istirahat',
-            produktivitas: '-'
-        }
-    }
-];
-
-// Initialize Dashboard Map
-function initDashboardMap() {
-    if (dashboardMap) return;
-    
-    dashboardMap = L.map('dashboardMap').setView([-8.1, 112.6], 12);
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(dashboardMap);
-    
-    // Add main marker for DI Molek
-    L.marker([-8.1, 112.6], {icon: customIcons.bendung})
-        .addTo(dashboardMap)
-        .bindPopup(`
-            <div class="custom-popup">
-            
-</body>
+<body>
     <div class="header">
         <h1><i class="fas fa-tint"></i> SKOPI</h1>
         <p>Sistem Kinerja Operasi dan Pemeliharaan Irigasi - DI. Molek</p>
@@ -591,151 +311,97 @@ function initDashboardMap() {
                     </div>
                 </div>
 
-                <div class="dashboard-grid">
-                    <div class="card">
-                        <h3>Ringkasan Sistem</h3>
-                        <p>Selamat datang di SKOPI (Sistem Kinerja Operasi dan Pemeliharaan Irigasi) DI. Molek. 
-                        Sistem ini membantu dalam monitoring dan evaluasi kinerja operasional jaringan irigasi.</p>
-                        
-                        <div style="margin-top: 2rem;">
-                            <h4>Status Operasional Hari Ini:</h4>
-                            <ul style="margin-top: 1rem; padding-left: 2rem;">
-                                <li>✅ Pintu Air Utama: Normal</li>
-                                <li>✅ Saluran Primer: Berfungsi Baik</li>
-                                <li>⚠️ Saluran Sekunder Blok C: Perlu Pembersihan</li>
-                                <li>✅ Bangunan Bagi: Normal</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <h3>Peta Lokasi DI. Molek</h3>
-                        <div id="dashboardMap"></div>
+                <div class="card">
+                    <h3>Ringkasan Sistem</h3>
+                    <p>Selamat datang di SKOPI (Sistem Kinerja Operasi dan Pemeliharaan Irigasi) DI. Molek. 
+                    Sistem ini membantu dalam monitoring dan evaluasi kinerja operasional jaringan irigasi.</p>
+                    
+                    <div style="margin-top: 2rem;">
+                        <h4>Status Operasional Hari Ini:</h4>
+                        <ul style="margin-top: 1rem; padding-left: 2rem;">
+                            <li>✅ Pintu Air Utama: Normal</li>
+                            <li>✅ Saluran Primer: Berfungsi Baik</li>
+                            <li>⚠️ Saluran Sekunder Blok C: Perlu Pembersihan</li>
+                            <li>✅ Bangunan Bagi: Normal</li>
+                        </ul>
                     </div>
                 </div>
             </div>
 
-            <!-- Profil Section -->
+            <!-- Profil Jaringan Irigasi Section -->
             <div id="profil" class="content-section">
                 <div class="card">
                     <h3>Profil DI. Molek</h3>
-                    <p>Informasi lengkap tentang Daerah Irigasi Molek akan ditampilkan di sini.</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                        <div>
+                            <h4>Informasi Umum</h4>
+                            <table>
+                                <tr><td><strong>Nama Daerah Irigasi</strong></td><td>DI. Molek</td></tr>
+                                <tr><td><strong>Lokasi</strong></td><td>Kabupaten Malang, Jawa Timur</td></tr>
+                                <tr><td><strong>Luas Baku</strong></td><td>1,250 Ha</td></tr>
+                                <tr><td><strong>Luas Fungsional</strong></td><td>1,180 Ha</td></tr>
+                                <tr><td><strong>Jenis Irigasi</strong></td><td>Teknis</td></tr>
+                                <tr><td><strong>Sumber Air</strong></td><td>Sungai Brantas</td></tr>
+                            </table>
+                        </div>
+                        <div>
+                            <h4>Infrastruktur</h4>
+                            <table>
+                                <tr><td><strong>Bendung Utama</strong></td><td>1 Unit</td></tr>
+                                <tr><td><strong>Saluran Primer</strong></td><td>8.5 Km</td></tr>
+                                <tr><td><strong>Saluran Sekunder</strong></td><td>15.2 Km</td></tr>
+                                <tr><td><strong>Saluran Tersier</strong></td><td>28.7 Km</td></tr>
+                                <tr><td><strong>Bangunan Bagi</strong></td><td>12 Unit</td></tr>
+                                <tr><td><strong>Bangunan Sadap</strong></td><td>45 Unit</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Kondisi Jaringan</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Komponen</th>
+                                    <th>Kondisi</th>
+                                    <th>Persentase Baik</th>
+                                    <th>Kebutuhan Pemeliharaan</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Bendung Utama</td>
+                                    <td><span class="status-hadir">Baik</span></td>
+                                    <td>95%</td>
+                                    <td>Rutin</td>
+                                </tr>
+                                <tr>
+                                    <td>Saluran Primer</td>
+                                    <td><span class="status-hadir">Baik</span></td>
+                                    <td>88%</td>
+                                    <td>Pembersihan Berkala</td>
+                                </tr>
+                                <tr>
+                                    <td>Saluran Sekunder</td>
+                                    <td><span class="status-izin">Sedang</span></td>
+                                    <td>75%</td>
+                                    <td>Perbaikan Ringan</td>
+                                </tr>
+                                <tr>
+                                    <td>Bangunan Bagi</td>
+                                    <td><span class="status-hadir">Baik</span></td>
+                                    <td>92%</td>
+                                    <td>Rutin</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- Peta Section -->
+            <!-- Peta Layout Section -->
             <div id="peta" class="content-section">
                 <div class="card">
-                    <h3>Peta Layout DI. Molek</h3>
-                    <div id="map"></div>
-                </div>
-            </div>
-
-<!-- Skema Irigasi Section -->
-<div id="skema" class="content-section">
-    <div class="card">
-        <h3>Skema Jaringan Irigasi DI. Molek</h3>
-        <div class="schema-diagram">
-            <div class="schema-flow">
-                <div class="schema-box">
-                    <i class="fas fa-water"></i><br>
-                    Sungai Brantas
-                </div>
-                <div class="schema-arrow">→</div>
-                <div class="schema-box">
-                    <i class="fas fa-dam"></i><br>
-                    Bendung Utama
-                </div>
-                <div class="schema-arrow">→</div>
-                <div class="schema-box">
-                    <i class="fas fa-stream"></i><br>
-                    Saluran Primer<br>
-                    (8.5 km)
-                </div>
-            </div>
-
-            <!-- Tenaga Section -->
-            <div id="tenaga" class="content-section">
-                <div class="card">
-                    <h3>Tenaga dan Absensi</h3>
-                    <p>Data tenaga kerja dan absensi akan ditampilkan di sini.</p>
-                </div>
-            </div>
-
-            <!-- Progres Section -->
-            <div id="progres" class="content-section">
-                <div class="card">
-                    <h3>Bobot Progres Harian</h3>
-                    <p>Grafik progres harian akan ditampilkan di sini.</p>
-                </div>
-            </div>
-
-            <!-- Kurva Section -->
-            <div id="kurva" class="content-section">
-                <div class="card">
-                    <h3>Kurva S Kinerja Bulanan</h3>
-                    <p>Kurva S kinerja bulanan akan ditampilkan di sini.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Menu Navigation
-        function showSection(sectionId) {
-            // Hide all sections
-            const sections = document.querySelectorAll('.content-section');
-            sections.forEach(section => section.classList.remove('active'));
-            
-            // Remove active class from all menu items
-            const menuItems = document.querySelectorAll('.menu-item');
-            menuItems.forEach(item => item.classList.remove('active'));
-            
-            // Show selected section
-            document.getElementById(sectionId).classList.add('active');
-            
-            // Add active class to clicked menu item
-            event.target.closest('.menu-item').classList.add('active');
-            
-            // Initialize maps when sections are shown
-            if (sectionId === 'dashboard') {
-                setTimeout(initDashboardMap, 100);
-            } else if (sectionId === 'peta') {
-                setTimeout(initMainMap, 100);
-            }
-        }
-
-        // Initialize Dashboard Map
-        let dashboardMap;
-        function initDashboardMap() {
-            if (dashboardMap) return;
-            
-            dashboardMap = L.map('dashboardMap').setView([-8.1, 112.6], 12);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(dashboardMap);
-            
-            // Add marker for DI Molek
-            L.marker([-8.1, 112.6])
-                .addTo(dashboardMap)
-                .bindPopup('<b>DI. Molek</b><br>Daerah Irigasi Molek<br>Kabupaten Malang')
-                .openPopup();
-        }
-
-        // Initialize Main Map
-        let mainMap;
-        function initMainMap() {
-            if (mainMap) return;
-            
-            mainMap = L.map('map').setView([-8.1, 112.6], 13);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(mainMap);
-            
-            // Add irrigation infrastructure markers
-            const locations = [
-                {lat: -8.1, lng: 112.6, name: 'Bendung Utama', type: 'bendung'},
-                {lat: -8.095, lng: 112.605, name: 'Bangunan Bagi 1', type: 'bangunan'},
-                {lat: -8.105, lng: 112.
+                    <h3>Peta Layout DI. Mo
