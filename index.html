@@ -466,7 +466,27 @@
             <div id="peta" class="content-section">
                 <div class="card">
                     <h3>Peta Layout DI. Molek</h3>
+                    <div class="map-controls" style="margin-bottom: 1rem;">
+                        <button onclick="toggleLayer('irrigation')" class="btn-control">
+                            <i class="fas fa-water"></i> Jaringan Irigasi
+                        </button>
+                        <button onclick="toggleLayer('staff')" class="btn-control">
+                            <i class="fas fa-users"></i> Lokasi Petugas
+                        </button>
+                        <button onclick="toggleLayer('maintenance')" class="btn-control">
+                            <i class="fas fa-tools"></i> Titik Pemeliharaan
+                        </button>
+                        <button onclick="refreshMapData()" class="btn-control">
+                            <i class="fas fa-sync-alt"></i> Refresh Data
+                        </button>
+                    </div>
                     <div id="map"></div>
+                    <div id="mapLegend" class="map-legend">
+                        <h4>Legenda:</h4>
+                        <div><span class="legend-icon" style="background: #27ae60;"></span> Status Baik</div>
+                        <div><span class="legend-icon" style="background: #f39c12;"></span> Perlu Perhatian</div>
+                        <div><span class="legend-icon" style="background: #e74c3c;"></span> Perlu Perbaikan</div>
+                    </div>
                 </div>
             </div>
 
