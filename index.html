@@ -719,5 +719,607 @@
             initDashboard(); // Load dashboard pertama kali
         });
     </script>
+    <script>
+let map;
+let irrigationLayer, staffLayer, maintenanceLayer;
+let markerClusterGroup;
+
+// Inisialisasi peta dengan Leaflet
+function initMapSection() {
+    if (map) {
+        map.remove(); // Hapus peta yang sudah ada
+    }
+    
+    // Inisialisasi peta
+    map = L.map('map').setView([-7.9797, 112.6304], 13);
+    
+    // Tambahkan tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Inisialisasi cluster group
+    markerClusterGroup = L.markerClusterGroup();
+    
+    // Load data dinamis
+    loadIrrigationNetwork();
+    loadStaffLocations();
+    loadMaintenancePoints();
+    
+    // Auto refresh setiap 5 menit
+    setInterval(refreshMapData, 300000);
+}
+
+// Load data jaringan irigasi dari file GeoJSON
+function loadIrrigationNetwork() {
+    fetch('data/irrigation_network.geojson')
+        .then(response => response.json())
+        .then(data => {
+            if (irrigationLayer) {
+                map.removeLayer(irrigationLayer);
+            }
+            
+            irrigationLayer = L.geoJSON(data, {
+                style: function(feature) {
+                    return getFeatureStyle(feature.properties.type, feature.properties.status);
+                },
+                pointToLayer: function(feature, latlng) {
+                    return L.marker(latlng, {
+                        icon: getCustomIcon(feature.properties.type, feature.properties.status)
+                    });
+                },
+                onEachFeature: function(feature, layer) {
+                    const popupContent = createPopupContent(feature.properties);
+                    layer.bindPopup(popupContent);
+                    
+                    // Event listener untuk klik
+                    layer.on('click', function(e) {
+                        showFeatureDetails(feature.properties);
+                    });
+                }
+            }).addTo(map);
+        })
+        .catch(error => {
+            console.error('Error loading irrigation network:', error);
+            showNotification('Error memuat data jaringan irigasi', 'error');
+        });
+}
+
+// Load lokasi petugas dari file JSON
+function loadStaffLocations() {
+    fetch('data/staff_locations.json')
+        .then(response => response.json())
+        .then(data => {
+            if (staffLayer) {
+                map.removeLayer(staffLayer);
+            }
+            
+            const staffMarkers = [];
+            data.staff.forEach(staff => {
+                const marker = L.marker([staff.location[1], staff.location[0]], {
+                    icon: getStaffIcon(staff.status)
+                }).bindPopup(`
+                    <div class="popup-content">
+                        <h4>${staff.name}</h4>
+                        <p><strong>Posisi:</strong> ${staff.position}</p>
+                        <p><strong>Status:</strong> ${staff.status}</p>
+                        <p><strong>Update Terakhir:</strong> ${formatDateTime(staff.last_update)}</p>
+                        <button onclick="contactStaff(${staff.id})">Hubungi</button>
+                    </div>
+                `);
+                
+                staffMarkers.push(marker);
+            });
+            
+            staffLayer = L.layerGroup(staffMarkers);
+            markerClusterGroup.addLayer(staffLayer);
+            map.addLayer(markerClusterGroup);
+        })
+        .catch(error => {
+            console.error('Error loading staff locations:', error);
+            showNotification('Error memuat lokasi petugas', 'error');
+        });
+}
+
+// Load titik pemeliharaan
+function loadMaintenancePoints() {
+    fetch('data/maintenance_points.json')
+        .then(response => response.json())
+        .then(data => {
+            if (maintenanceLayer) {
+                map.removeLayer(maintenanceLayer);
+            }
+            
+            const maintenanceMarkers = [];
+            data.points.forEach(point => {
+                const marker = L.marker([point.lat, point.lng], {
+                    icon: getMaintenanceIcon(point.priority)
+                }).bindPopup(`
+                    <div class="popup-content">
+                        <h4>${point.title}</h4>
+                        <p><strong>Prioritas:</strong> ${point.priority}</p>
+                        <p><strong>Deskripsi:</strong> ${point.description}</p>
+                        <p><strong>Tanggal:</strong> ${point.scheduled_date}</p>
+                        <button onclick="scheduleMaintenace(${point.id})">Jadwalkan</button>
+                    </div>
+                `);
+                
+                maintenanceMarkers.push(marker);
+            });
+            
+            maintenanceLayer = L.layerGroup(maintenanceMarkers).addTo(map);
+        })
+        .catch(error => {
+            console.error('Error loading maintenance points:', error);
+        });
+}
+
+// Fungsi untuk mendapatkan style berdasarkan tipe dan status
+function getFeatureStyle(type, status) {
+    const colors = {
+        'baik': '#27ae60',
+        'sedang': '#f39c12',
+        'buruk': '#e74c3c'
+    };
+    
+    return {
+        color: colors[status] || '#3498db',
+        weight: type === 'saluran_primer' ? 4 : 2,
+        opacity: 0.8
+    };
+}
+
+// Fungsi untuk mendapatkan custom icon
+function getCustomIcon(type, status) {
+    const iconUrls = {
+        'bendung': 'assets/icons/bendung.png',
+        'bangunan_bagi': 'assets/icons/bangunan_bagi.png',
+        'pintu_air': 'assets/icons/pintu_air.png'
+    };
+    
+    const colors = {
+        'baik': '#27ae60',
+        'sedang': '#f39c12',
+        'buruk': '#e74c3c'
+    };
+    
+    return L.divIcon({
+        html: `<div style="background-color: ${colors[status]}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>`,
+        iconSize: [20, 20],
+        className: 'custom-div-icon'
+    });
+}
+
+// Fungsi untuk icon petugas
+function getStaffIcon(status) {
+    const colors = {
+        'active': '#27ae60',
+        'maintenance': '#f39c12',
+        'offline': '#e74c3c'
+    };
+    
+    return L.divIcon({
+        html: `<i class="fas fa-user" style="color: ${colors[status]}; font-size: 16px;"></i>`,
+        iconSize: [20, 20],
+        className: 'staff-icon'
+    });
+}
+
+// Fungsi untuk icon pemeliharaan
+function getMaintenanceIcon(priority) {
+    const colors = {
+        'high': '#e74c3c',
+        'medium': '#f39c12',
+        'low': '#27ae60'
+    };
+    
+    return L.divIcon({
+        html: `<i class="fas fa-tools" style="color: ${colors[priority]}; font-size: 16px;"></i>`,
+        iconSize: [20, 20],
+        className: 'maintenance-icon'
+    });
+}
+
+// Fungsi untuk membuat konten popup
+function createPopupContent(properties) {
+    return `
+        <div class="popup-content">
+            <h4>${properties.name}</h4>
+            <p><strong>Tipe:</strong> ${properties.type}</p>
+            <p><strong>Status:</strong> ${properties.status}</p>
+            ${properties.capacity ? `<p><strong>Kapasitas:</strong> ${properties.capacity}</p>` : ''}
+            ${properties.length ? `<p><strong>Panjang:</strong> ${properties.length}</p>` : ''}
+            ${properties.last_maintenance ? `<p><strong>Pemeliharaan Terakhir:</strong> ${properties.last_maintenance}</p>` : ''}
+        </div>
+    `;
+}
+
+// Fungsi untuk toggle layer
+function toggleLayer(layerType) {
+    switch(layerType) {
+        case 'irrigation':
+            if (map.hasLayer(irrigationLayer)) {
+                map.removeLayer(irrigationLayer);
+            } else {
+                map.addLayer(irrigationLayer);
+            }
+            break;
+        case 'staff':
+            if (map.hasLayer(markerClusterGroup)) {
+                map.removeLayer(markerClusterGroup);
+            } else {
+                map.addLayer(markerClusterGroup);
+            }
+            break;
+        case 'maintenance':
+            if (map.hasLayer(maintenanceLayer)) {
+                map.removeLayer(maintenanceLayer);
+            } else
+                            } else {
+                map.addLayer(maintenanceLayer);
+            }
+            break;
+    }
+}
+
+// Fungsi untuk refresh data peta
+function refreshMapData() {
+    showNotification('Memperbarui data peta...', 'info');
+    
+    // Reload semua data
+    loadIrrigationNetwork();
+    loadStaffLocations();
+    loadMaintenancePoints();
+    
+    // Update timestamp
+    const now = new Date();
+    document.getElementById('lastUpdate').textContent = `Terakhir diperbarui: ${formatDateTime(now.toISOString())}`;
+    
+    setTimeout(() => {
+        showNotification('Data peta berhasil diperbarui', 'success');
+    }, 2000);
+}
+
+// Fungsi untuk menampilkan detail fitur
+function showFeatureDetails(properties) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3>Detail ${properties.name}</h3>
+            <div class="detail-grid">
+                <div><strong>Tipe:</strong> ${properties.type}</div>
+                <div><strong>Status:</strong> ${properties.status}</div>
+                ${properties.capacity ? `<div><strong>Kapasitas:</strong> ${properties.capacity}</div>` : ''}
+                ${properties.length ? `<div><strong>Panjang:</strong> ${properties.length}</div>` : ''}
+                ${properties.last_maintenance ? `<div><strong>Pemeliharaan Terakhir:</strong> ${properties.last_maintenance}</div>` : ''}
+            </div>
+            <div class="modal-actions">
+                <button onclick="scheduleInspection('${properties.name}')">Jadwalkan Inspeksi</button>
+                <button onclick="reportIssue('${properties.name}')">Laporkan Masalah</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Fungsi untuk menutup modal
+function closeModal() {
+    const modal = document.querySelector('.modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Fungsi untuk menghubungi petugas
+function contactStaff(staffId) {
+    showNotification(`Menghubungi petugas ID: ${staffId}`, 'info');
+    // Implementasi kontak petugas (WhatsApp, SMS, dll)
+}
+
+// Fungsi untuk jadwal pemeliharaan
+function scheduleMaintenace(pointId) {
+    showNotification(`Menjadwalkan pemeliharaan untuk titik ID: ${pointId}`, 'info');
+    // Implementasi penjadwalan
+}
+
+// Fungsi untuk jadwal inspeksi
+function scheduleInspection(featureName) {
+    showNotification(`Menjadwalkan inspeksi untuk ${featureName}`, 'info');
+    closeModal();
+}
+
+// Fungsi untuk laporan masalah
+function reportIssue(featureName) {
+    showNotification(`Membuat laporan masalah untuk ${featureName}`, 'info');
+    closeModal();
+}
+
+// Fungsi untuk format tanggal dan waktu
+function formatDateTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleString('id-ID', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Fungsi untuk menampilkan notifikasi
+function showNotification(message, type = 'info') {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.className = `notification ${type}`;
+    notification.style.display = 'block';
+    
+    setTimeout(() => {
+        notification.style.display = 'none';
+    }, 3000);
+}
+
+// Fungsi untuk load data performance dinamis
+function loadPerformanceData() {
+    fetch('data/performance_data.json')
+        .then(response => response.json())
+        .then(data => {
+            updateDashboardStats(data);
+            updateProgressChart(data.daily_progress);
+            updatePerformanceCurve(data.monthly_performance);
+        })
+        .catch(error => {
+            console.error('Error loading performance data:', error);
+            showNotification('Error memuat data kinerja', 'error');
+        });
+}
+
+// Update statistik dashboard dengan data dinamis
+function updateDashboardStats(data) {
+    // Update berdasarkan data terbaru
+    const latestProgress = data.daily_progress[data.daily_progress.length - 1];
+    const latestMonthly = data.monthly_performance[data.monthly_performance.length - 1];
+    
+    document.getElementById('kinerjaBulanan').textContent = `${latestMonthly.performance}%`;
+    
+    // Animasi counter
+    animateCounter('totalPetugas', 15);
+    animateCounter('tingkatKehadiran', 85, '%');
+    animateCounter('luasLayanan', 1250);
+    animateCounter('kinerjaBulanan', latestMonthly.performance, '%');
+}
+
+// Fungsi animasi counter
+function animateCounter(elementId, targetValue, suffix = '') {
+    const element = document.getElementById(elementId);
+    const startValue = 0;
+    const duration = 2000;
+    const startTime = performance.now();
+    
+    function updateCounter(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const currentValue = Math.floor(startValue + (targetValue - startValue) * progress);
+        
+        element.textContent = currentValue + suffix;
+        
+        if (progress < 1) {
+            requestAnimationFrame(updateCounter);
+        }
+    }
+    
+    requestAnimationFrame(updateCounter);
+}
+
+// Update chart progres dengan data dinamis
+function updateProgressChart(progressData) {
+    const ctx = document.getElementById('progressChart');
+    if (!ctx) return;
+    
+    const chart = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: progressData.map(item => new Date(item.date).toLocaleDateString('id-ID')),
+            datasets: [{
+                label: 'Progres Aktual (%)',
+                data: progressData.map(item => item.progress),
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Target (%)',
+                data: progressData.map(item => item.target),
+                borderColor: '#e74c3c',
+                borderDash: [5, 5],
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Progres Harian vs Target'
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Update kurva kinerja bulanan
+function updatePerformanceCurve(monthlyData) {
+    const ctx = document.getElementById('performanceCurveChart');
+    if (!ctx) return;
+    
+    const chart = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: monthlyData.map(item => item.month),
+            datasets: [{
+                label: 'Kinerja (%)',
+                data: monthlyData.map(item => item.performance),
+                backgroundColor: '#3498db',
+                borderColor: '#2980b9',
+                borderWidth: 1
+            }, {
+                label: 'Efisiensi (%)',
+                data: monthlyData.map(item => item.efficiency),
+                backgroundColor: '#27ae60',
+                borderColor: '#229954',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Kinerja dan Efisiensi Bulanan'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Fungsi untuk export data
+function exportMapData(format = 'json') {
+    const allData = {
+        irrigation: irrigationLayer ? irrigationLayer.toGeoJSON() : null,
+        staff: staffLayer ? staffLayer.toGeoJSON() : null,
+        maintenance: maintenanceLayer ? maintenanceLayer.toGeoJSON() : null,
+        timestamp: new Date().toISOString()
+    };
+    
+    if (format === 'json') {
+        const dataStr = JSON.stringify(allData, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `skopi_data_${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+    }
+}
+
+// Fungsi untuk real-time updates menggunakan WebSocket (opsional)
+function initWebSocketConnection() {
+    if (typeof WebSocket !== 'undefined') {
+        const ws = new WebSocket('ws://localhost:8080/skopi-updates');
+        
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
+            switch(data.type) {
+                case 'staff_location_update':
+                    updateStaffLocation(data.staffId, data.location);
+                    break;
+                case 'maintenance_alert':
+                    showMaintenanceAlert(data.message);
+                    break;
+                case 'system_status_update':
+                    updateSystemStatus(data.status);
+                    break;
+            }
+        };
+        
+        ws.onerror = function(error) {
+            console.log('WebSocket error:', error);
+        };
+    }
+}
+
+// Update lokasi petugas secara real-time
+function updateStaffLocation(staffId, newLocation) {
+    // Update marker petugas di peta
+    if (staffLayer) {
+        staffLayer.eachLayer(function(marker) {
+            if (marker.options.staffId === staffId) {
+                marker.setLatLng(newLocation);
+            }
+        });
+    }
+}
+
+// Tampilkan alert pemeliharaan
+function showMaintenanceAlert(message) {
+    showNotification(message, 'warning');
+    
+    // Tambahkan ke log aktivitas
+    const activityContainer = document.getElementById('recentActivities');
+    if (activityContainer) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert-item';
+        alertDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+        activityContainer.insertBefore(alertDiv, activityContainer.firstChild);
+    }
+}
+
+// Update status sistem
+function updateSystemStatus(status) {
+    const statusContainer = document.getElementById('statusOperasional');
+    if (statusContainer && status) {
+        statusContainer.innerHTML = status.map(item => 
+            `<li>${item.icon} ${item.component}: ${item.status}</li>`
+        ).join('');
+    }
+}
+
+// Inisialisasi semua fungsi saat dokumen siap
+document.addEventListener('DOMContentLoaded', function() {
+    initDashboard();
+    loadPerformanceData();
+    
+    // Inisialisasi WebSocket untuk real-time updates
+    initWebSocketConnection();
+    
+    // Auto refresh data setiap 10 menit
+    setInterval(function() {
+        loadPerformanceData();
+        if (document.getElementById('peta').classList.contains('active')) {
+            refreshMapData();
+        }
+    }, 600000);
+});
+
+// Event listener untuk resize window
+window.addEventListener('resize', function() {
+    if (map) {
+        setTimeout(function() {
+            map.invalidateSize();
+        }, 100);
+    }
+});
+</script>
+
 </body>
 </html>
