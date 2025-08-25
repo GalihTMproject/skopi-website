@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Bendung Utama Molek",
+        "type": "bendung",
+        "kondisi": "Baik",
+        "debit": "2.5 m³/s",
+        "lebar": "45 m",
+        "tinggi": "3.5 m",
+        "tahun_bangun": "1985",
+        "kapasitas": "5.0 m³/s",
+        "koordinat": "8°06'00\"S 112°36'00\"E"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [112.6000, -8.1000]
+      }
+    }
+  ]
+}
