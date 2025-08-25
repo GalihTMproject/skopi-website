@@ -118,6 +118,12 @@
             padding: 1.5rem;
             border-radius: 10px;
             text-align: center;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
         }
 
         .stat-card h4 {
@@ -231,11 +237,47 @@
             border-radius: 8px;
             text-align: center;
             min-width: 120px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .schema-box:hover {
+            background: #2980b9;
+            transform: scale(1.05);
         }
 
         .schema-arrow {
             font-size: 2rem;
             color: #3498db;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #7f8c8d;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem;
+            border-radius: 5px;
+            color: white;
+            z-index: 1000;
+            display: none;
+        }
+
+        .notification.success {
+            background-color: #27ae60;
+        }
+
+        .notification.error {
+            background-color: #e74c3c;
+        }
+
+        .notification.info {
+            background-color: #3498db;
         }
 
         @media (max-width: 768px) {
@@ -263,6 +305,9 @@
         <h1><i class="fas fa-tint"></i> SKOPI</h1>
         <p>Sistem Kinerja Operasi dan Pemeliharaan Irigasi - DI. Molek</p>
     </div>
+
+    <!-- Notification -->
+    <div id="notification" class="notification"></div>
 
     <div class="container">
         <div class="sidebar">
@@ -293,20 +338,20 @@
             <!-- Dashboard Section -->
             <div id="dashboard" class="content-section active">
                 <div class="stats-grid">
-                    <div class="stat-card">
-                        <h4>15</h4>
+                    <div class="stat-card" onclick="showDetailStats('petugas')">
+                        <h4 id="totalPetugas">15</h4>
                         <p>Total Petugas</p>
                     </div>
-                    <div class="stat-card">
-                        <h4>85%</h4>
+                    <div class="stat-card" onclick="showDetailStats('kehadiran')">
+                        <h4 id="tingkatKehadiran">85%</h4>
                         <p>Tingkat Kehadiran</p>
                     </div>
-                    <div class="stat-card">
-                        <h4>1,250</h4>
+                    <div class="stat-card" onclick="showDetailStats('luas')">
+                        <h4 id="luasLayanan">1,250</h4>
                         <p>Luas Layanan (Ha)</p>
                     </div>
-                    <div class="stat-card">
-                        <h4>92%</h4>
+                    <div class="stat-card" onclick="showDetailStats('kinerja')">
+                        <h4 id="kinerjaBulanan">92%</h4>
                         <p>Kinerja Bulanan</p>
                     </div>
                 </div>
@@ -318,12 +363,19 @@
                     
                     <div style="margin-top: 2rem;">
                         <h4>Status Operasional Hari Ini:</h4>
-                        <ul style="margin-top: 1rem; padding-left: 2rem;">
+                        <ul id="statusOperasional" style="margin-top: 1rem; padding-left: 2rem;">
                             <li>✅ Pintu Air Utama: Normal</li>
                             <li>✅ Saluran Primer: Berfungsi Baik</li>
                             <li>⚠️ Saluran Sekunder Blok C: Perlu Pembersihan</li>
                             <li>✅ Bangunan Bagi: Normal</li>
                         </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Aktivitas Terbaru</h3>
+                    <div id="recentActivities">
+                        <div class="loading">Memuat aktivitas terbaru...</div>
                     </div>
                 </div>
             </div>
@@ -335,7 +387,7 @@
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
                         <div>
                             <h4>Informasi Umum</h4>
-                            <table>
+                            <table id="infoUmum">
                                 <tr><td><strong>Nama Daerah Irigasi</strong></td><td>DI. Molek</td></tr>
                                 <tr><td><strong>Lokasi</strong></td><td>Kabupaten Malang, Jawa Timur</td></tr>
                                 <tr><td><strong>Luas Baku</strong></td><td>1,250 Ha</td></tr>
@@ -346,7 +398,7 @@
                         </div>
                         <div>
                             <h4>Infrastruktur</h4>
-                            <table>
+                            <table id="infrastruktur">
                                 <tr><td><strong>Bendung Utama</strong></td><td>1 Unit</td></tr>
                                 <tr><td><strong>Saluran Primer</strong></td><td>8.5 Km</td></tr>
                                 <tr><td><strong>Saluran Sekunder</strong></td><td>15.2 Km</td></tr>
@@ -361,13 +413,13 @@
                 <div class="card">
                     <h3>Kondisi Jaringan</h3>
                     <div class="table-container">
-                        <table>
+                        <table id="kondisiJaringan">
                             <thead>
                                 <tr>
                                     <th>Komponen</th>
                                     <th>Kondisi</th>
-                                    <th>Persentase Baik</th>
-                                    <th>Kebutuhan Pemeliharaan</th>
+                                    <th>Persentase Baik</th
+                                                        <th>Kebutuhan Pemeliharaan</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -404,45 +456,239 @@
             <!-- Peta Layout Section -->
             <div id="peta" class="content-section">
                 <div class="card">
-                    <h3>Peta Layout DI. Mo
+                    <h3>Peta Layout DI. Molek</h3>
+                    <div id="map"></div>
+                </div>
+            </div>
 
-            // Di bagian bawah file HTML, sebelum </body>
-<script>
-    // Fungsi utama untuk switching menu
-    function showSection(sectionId) {
-        // Hide semua section
-        document.querySelectorAll('.content-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        
-        // Show section yang dipilih
-        document.getElementById(sectionId).classList.add('active');
-        
-        // Update menu aktif
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        event.target.classList.add('active');
-        
-        // Eksekusi skript spesifik
-        executeMenuScript(sectionId);
-    }
-    
-    function executeMenuScript(menuId) {
-        switch(menuId) {
-            case 'dashboard':
-                initDashboard();
-                break;
-            case 'peta':
-                setTimeout(initMapSection, 100); // Delay untuk DOM ready
-                break;
-            // Tambahkan case lainnya
-        }
-    }
-    
-    // Inisialisasi saat halaman dimuat
-    document.addEventListener('DOMContentLoaded', function() {
-        initDashboard(); // Load dashboard pertama kali
-    });
-</script>
+            <!-- Skema Irigasi Section -->
+            <div id="skema" class="content-section">
+                <div class="card">
+                    <h3>Skema Irigasi</h3>
+                    <div class="irrigation-schema">
+                        <div class="schema-diagram">
+                            <img src="path/to/schema-diagram.png" alt="Skema Irigasi">
+                        </div>
+                        <div class="schema-flow">
+                            <div class="schema-box">Sumber Air</div>
+                            <div class="schema-arrow">→</div>
+                            <div class="schema-box">Saluran Primer</div>
+                            <div class="schema-arrow">→</div>
+                            <div class="schema-box">Saluran Sekunder</div>
+                            <div class="schema-arrow">→</div>
+                            <div class="schema-box">Saluran Tersier</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tenaga dan Absensi Section -->
+            <div id="tenaga" class="content-section">
+                <div class="card">
+                    <h3>Tenaga dan Absensi</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nama Petugas</th>
+                                    <th>Status Kehadiran</th>
+                                    <th>Tanggal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceData">
+                                <tr>
+                                    <td>Petugas 1</td>
+                                    <td><span class="status-hadir">Hadir</span></td>
+                                    <td>01/10/2023</td>
+                                </tr>
+                                <tr>
+                                    <td>Petugas 2</td>
+                                    <td><span class="status-tidak-hadir">Tidak Hadir</span></td>
+                                    <td>01/10/2023</td>
+                                </tr>
+                                <tr>
+                                    <td>Petugas 3</td>
+                                    <td><span class="status-izin">Izin</span></td>
+                                    <td>01/10/2023</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bobot Progres Harian Section -->
+            <div id="progres" class="content-section">
+                <div class="card">
+                    <h3>Bobot Progres Harian</h3>
+                    <div class="chart-container">
+                        <canvas id="progressChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kurva S Kinerja Bulanan Section -->
+            <div id="kurva" class="content-section">
+                <div class="card">
+                    <h3>Kurva S Kinerja Bulanan</h3>
+                    <div class="chart-container">
+                        <canvas id="performanceCurveChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fungsi untuk menampilkan section yang dipilih
+        function showSection(sectionId) {
+            // Hide semua section
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
             
+            // Show section yang dipilih
+            document.getElementById(sectionId).classList.add('active');
+            
+            // Update menu aktif
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Eksekusi skript spesifik
+            executeMenuScript(sectionId);
+        }
+
+        function executeMenuScript(menuId) {
+            switch(menuId) {
+                case 'dashboard':
+                    initDashboard();
+                    break;
+                case 'profil':
+                    initProfil();
+                    break;
+                case 'peta':
+                    initMapSection();
+                    break;
+                case 'skema':
+                    initSchemaSection();
+                    break;
+                case 'tenaga':
+                    initStaffSection();
+                    break;
+                case 'progres':
+                    initProgressSection();
+                    break;
+                case 'kurva':
+                    initCurveSection();
+                    break;
+            }
+        }
+
+        function initDashboard() {
+            // Update statistik real-time
+            updateStats();
+            loadRecentActivities();
+        }
+
+        function initProfil() {
+            // Load data profil
+            loadProfileData();
+        }
+
+        function initMapSection() {
+            // Inisialisasi Mapbox
+            mapboxgl.accessToken = 'your-mapbox-token';
+            const map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/satellite-v9',
+                center: [112.6304, -7.9797], // Koordinat Malang
+                zoom: 12
+            });
+        }
+
+        function initSchemaSection() {
+            // Load skema irigasi
+            loadSchemaData();
+        }
+
+        function initStaffSection() {
+            // Load data absensi
+            loadAttendanceData();
+        }
+
+        function initProgressSection() {
+            // Inisialisasi chart progres harian
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            const progressChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+                    datasets: [{
+                        label: 'Progres Harian (%)',
+                        data: [65, 70, 75, 80, 85, 88, 92],
+                        borderColor: '#3498db',
+                        tension: 0.1
+                    }]
+                }
+            });
+        }
+
+        function initCurveSection() {
+            // Inisialisasi chart kinerja bulanan
+            const ctx = document.getElementById('performanceCurveChart').getContext('2d');
+            const performanceCurveChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'],
+                    datasets: [{
+                        label: 'Kinerja Bulanan (%)',
+                        data: [80, 85, 90, 95, 92, 88, 91],
+                        backgroundColor: '#2980b9'
+                    }]
+                }
+            });
+        }
+
+        function updateStats() {
+            // Simulasi pengambilan data
+            document.getElementById('totalPetugas').textContent = '15'; // Update sesuai data
+            document.getElementById('tingkatKehadiran').textContent = '85%'; // Update sesuai data
+            document.getElementById('luasLayanan').textContent = '1,250'; // Update sesuai data
+            document.getElementById('kinerjaBulanan').textContent = '92%'; // Update sesuai data
+        }
+
+        function loadRecentActivities() {
+            // Simulasi pengambilan data aktivitas terbaru
+            const activities = [
+                'Petugas 1 melakukan pemeriksaan saluran.',
+                'Petugas 2 membersihkan saluran sekunder.',
+                'Petugas 3 melakukan perbaikan pada bendung utama.'
+            ];
+            const activityContainer = document.getElementById('recentActivities');
+            activityContainer.innerHTML = activities.map(activity => `<div>${activity}</div>`).join('');
+        }
+
+        function loadProfileData() {
+            // Simulasi pengambilan data profil
+            console.log('Loading profile data...');
+        }
+
+        function loadAttendanceData() {
+            // Simulasi pengambilan data absensi
+            console.log('Loading attendance data...');
+        }
+
+        function loadSchemaData() {
+            // Simulasi pengambilan data skema
+            console.log('Loading schema data...');
+        }
+
+        // Inisialisasi saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', function() {
+            initDashboard(); // Load dashboard pertama kali
+        });
+    </script>
+</body>
+</html>
