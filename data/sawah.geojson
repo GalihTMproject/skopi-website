@@ -1,0 +1,74 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Blok Sawah A1",
+        "luas": "125 Ha",
+        "status": "Masa Tanam",
+        "jenis_padi": "IR64",
+        "musim_tanam": "MT I 2024",
+        "produktivitas": "6.2 ton/ha",
+        "petani": "Kelompok Tani Makmur",
+        "irigasi": "Teknis"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [112.6100, -8.0900],
+          [112.6120, -8.0920],
+          [112.6110, -8.0940],
+          [112.6090, -8.0920],
+          [112.6100, -8.0900]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Blok Sawah A2",
+        "luas": "98 Ha",
+        "status": "Persiapan Lahan",
+        "jenis_padi": "Ciherang",
+        "musim_tanam": "MT I 2024",
+        "produktivitas": "5.8 ton/ha",
+        "petani": "Kelompok Tani Sejahtera",
+        "irigasi": "Teknis"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [112.6110, -8.0940],
+          [112.6130, -8.0960],
+          [112.6120, -8.0980],
+          [112.6100, -8.0960],
+          [112.6110, -8.0940]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Blok Sawah B1",
+        "luas": "87 Ha",
+        "status": "Panen",
+        "jenis_padi": "Inpari 32",
+        "musim_tanam": "MT III 2023",
+        "produktivitas": "6.5 ton/ha",
+        "petani": "Kelompok Tani Maju",
+        "irigasi": "Teknis"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [112.6130, -8.1000],
+          [112.6150, -8.1020],
+          [112.6140, -8.1040],
+          [112.6120, -8.1020],
+          [112.6130, -8.1000]
+        ]]
+      }
+    }
+  ]
+}
