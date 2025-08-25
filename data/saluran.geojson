@@ -1,0 +1,69 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Saluran Primer Molek",
+        "type": "primer",
+        "panjang": "8.5 km",
+        "lebar": "3.5 m",
+        "kondisi": "Baik",
+        "kapasitas": "2.5 m³/s",
+        "material": "Beton"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [112.6000, -8.1000],
+          [112.6050, -8.0950],
+          [112.6100, -8.0900],
+          [112.6150, -8.0850],
+          [112.6200, -8.0800]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Saluran Sekunder Kanan",
+        "type": "sekunder",
+        "panjang": "4.2 km",
+        "lebar": "2.0 m",
+        "kondisi": "Baik",
+        "kapasitas": "1.2 m³/s",
+        "material": "Tanah"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [112.6050, -8.0950],
+          [112.6080, -8.0920],
+          [112.6110, -8.0890],
+          [112.6140, -8.0860]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Saluran Sekunder Kiri",
+        "type": "sekunder",
+        "panjang": "3.8 km",
+        "lebar": "1.8 m",
+        "kondisi": "Perlu Pembersihan",
+        "kapasitas": "0.8 m³/s",
+        "material": "Tanah"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [112.6050, -8.0950],
+          [112.6120, -8.0980],
+          [112.6150, -8.1010],
+          [112.6180, -8.1040]
+        ]
+      }
+    }
+  ]
+}
