@@ -167,6 +167,324 @@
         }
     </style>
 </head>
+<script>
+// Global Variables
+let dashboardMap, mainMap;
+let layerGroups = {};
+let currentActiveLayer = 'all';
+
+// Menu Navigation
+function showSection(sectionId) {
+    // Hide all sections
+    const sections = document.querySelectorAll('.content-section');
+    sections.forEach(section => section.classList.remove('active'));
+    
+    // Remove active class from all menu items
+    const menuItems = document.querySelectorAll('.menu-item');
+    menuItems.forEach(item => item.classList.remove('active'));
+    
+    // Show selected section
+    document.getElementById(sectionId).classList.add('active');
+    
+    // Add active class to clicked menu item
+    event.target.closest('.menu-item').classList.add('active');
+    
+    // Initialize maps when sections are shown
+    if (sectionId === 'dashboard') {
+        setTimeout(initDashboardMap, 100);
+    } else if (sectionId === 'peta') {
+        setTimeout(initMainMap, 100);
+    } else if (sectionId === 'progres') {
+        setTimeout(initProgressChart, 100);
+    } else if (sectionId === 'kurva') {
+        setTimeout(initKurvaChart, 100);
+    }
+}
+
+// Initialize Dashboard Map
+function initDashboardMap() {
+    if (dashboardMap) return;
+    
+    dashboardMap = L.map('dashboardMap').setView([-8.1, 112.6], 12);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(dashboardMap);
+    
+    // Add marker for DI Molek
+    L.marker([-8.1, 112.6])
+        .addTo(dashboardMap)
+        .bindPopup('<div class="custom-popup"><h4>DI. Molek</h4><p>Daerah Irigasi Molek</p><p>Kabupaten Malang, Jawa Timur</p><p><strong>Status:</strong> Operasional</p></div>')
+        .openPopup();
+}
+
+// Initialize Main Map with Detailed Features
+function initMainMap() {
+    if (mainMap) return;
+    
+    mainMap = L.map('map').setView([-8.1, 112.6], 13);
+    
+    // Base layers
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    });
+    
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri'
+    });
+    
+    osmLayer.addTo(mainMap);
+    
+    // Initialize layer groups
+    layerGroups.bendung = L.layerGroup().addTo(mainMap);
+    layerGroups.saluran = L.layerGroup().addTo(mainMap);
+    layerGroups.bangunan = L.layerGroup().addTo(mainMap);
+    layerGroups.sawah = L.layerGroup().addTo(mainMap);
+    
+    // Add irrigation infrastructure
+    addIrrigationFeatures();
+    
+    // Add layer control
+    const baseLayers = {
+        "Peta Standar": osmLayer,
+        "Satelit": satelliteLayer
+    };
+    
+    L.control.layers(baseLayers).addTo(mainMap);
+}
+
+// Add Irrigation Features to Map
+function addIrrigationFeatures() {
+    // Bendung (Weirs)
+    const bendungIcon = L.divIcon({
+        html: '<i class="fas fa-water" style="color: #2980b9; font-size: 20px;"></i>',
+        iconSize: [30, 30],
+        className: 'custom-div-icon'
+    });
+    
+    L.marker([-8.1, 112.6], {icon: bendungIcon})
+        .addTo(layerGroups.bendung)
+        .bindPopup('<div class="custom-popup"><h4>Bendung Utama Molek</h4><p><strong>Tipe:</strong> Bendung Tetap</p><p><strong>Lebar:</strong> 45 m</p><p><strong>Kondisi:</strong> Baik</p><p><strong>Debit:</strong> 2.5 m³/s</p></div>');
+    
+    // Bangunan Bagi (Distribution Structures)
+    const bangunanIcon = L.divIcon({
+        html: '<i class="fas fa-building" style="color: #27ae60; font-size: 16px;"></i>',
+        iconSize: [25, 25],
+        className: 'custom-div-icon'
+    });
+    
+    const bangunanData = [
+        {lat: -8.095, lng: 112.605, name: 'Bangunan Bagi 1', debit: '1.2 m³/s'},
+        {lat: -8.105, lng: 112.615, name: 'Bangunan Bagi 2', debit: '0.8 m³/s'},
+        {lat: -8.085, lng: 112.625, name: 'Bangunan Bagi 3', debit: '0.5 m³/s'}
+    ];
+    
+    bangunanData.forEach(item => {
+        L.marker([item.lat, item.lng], {icon: bangunanIcon})
+            .addTo(layerGroups.bangunan)
+            .bindPopup(`<div class="custom-popup"><h4>${item.name}</h4><p><strong>Debit:</strong> ${item.debit}</p><p><strong>Kondisi:</strong> Baik</p></div>`);
+    });
+    
+    // Saluran (Channels) - using polylines
+    const saluranPrimer = [
+        [-8.1, 112.6],
+        [-8.095, 112.605],
+        [-8.09, 112.61],
+        [-8.085, 112.615]
+    ];
+    
+    const saluranSekunder1 = [
+        [-8.095, 112.605],
+        [-8.1, 112.61],
+        [-8.105, 112.615]
+    ];
+    
+    const saluranSekunder2 = [
+        [-8.085, 112.615],
+        [-8.08, 112.62],
+        [-8.075, 112.625]
+    ];
+    
+    L.polyline(saluranPrimer, {color: '#3498db', weight: 4})
+        .addTo(layerGroups.saluran)
+        .bindPopup('<div class="custom-popup"><h4>Saluran Primer</h4><p><strong>Panjang:</strong> 8.5 km</p><p><strong>Kondisi:</strong> Baik</p></div>');
+    
+    L.polyline(saluranSekunder1, {color: '#2ecc71', weight: 3})
+        .addTo(layerGroups.saluran)
+        .bindPopup('<div class="custom-popup"><h4>Saluran Sekunder A</h4><p><strong>Panjang:</strong> 3.2 km</p><p><strong>Kondisi:</strong> Baik</p></div>');
+    
+    L.polyline(saluranSekunder2, {color: '#f39c12', weight: 3})
+        .addTo(layerGroups.saluran)
+        .bindPopup('<div class="custom-popup"><h4>Saluran Sekunder B</h4><p><strong>Panjang:</strong> 2.8 km</p><p><strong>Kondisi:</strong> Perlu Perbaikan</p></div>');
+    
+    // Area Sawah (Rice Fields) - using polygons
+    const sawahArea1 = [
+        [-8.09, 112.61],
+        [-8.095, 112.62],
+        [-8.1, 112.625],
+        [-8.095, 112.615]
+    ];
+    
+    const sawahArea2 = [
+        [-8.075, 112.615],
+        [-8.08, 112.625],
+        [-8.085, 112.63],
+        [-8.08, 112.62]
+    ];
+    
+    L.polygon(sawahArea1, {color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 0.3})
+        .addTo(layerGroups.sawah)
+        .bindPopup('<div class="custom-popup"><h4>Blok Sawah A</h4><p><strong>Luas:</strong> 125 Ha</p><p><strong>Status:</strong> Masa Tanam</p><p><strong>Jenis:</strong> Padi IR64</p></div>');
+    
+    L.polygon(sawahArea2, {color: '#27ae60', fillColor: '#2ecc71', fillOpacity: 0.3})
+        .addTo(layerGroups.sawah)
+        .bindPopup('<div class="custom-popup"><h4>Blok Sawah B</h4><p><strong>Luas:</strong> 98 Ha</p><p><strong>Status:</strong> Persiapan Lahan</p><p><strong>Jenis:</strong> Padi Ciherang</p></div>');
+}
+
+// Toggle Map Layers
+function toggleLayer(layerType) {
+    // Remove active class from all buttons
+    document.querySelectorAll('.map-control-btn').forEach(btn => btn.classList.remove('active'));
+    
+    // Add active class to clicked button
+    event.target.classList.add('active');
+    
+    if (layerType === 'all') {
+        Object.values(layerGroups).forEach(group => mainMap.addLayer(group));
+    } else {
+        // Hide all layers first
+        Object.values(layerGroups).forEach(group => mainMap.removeLayer(group));
+        // Show selected layer
+        if (layerGroups[layerType]) {
+            mainMap.addLayer(layerGroups[layerType]);
+        }
+    }
+    
+    currentActiveLayer = layerType;
+}
+
+// Initialize Progress Chart
+function initProgressChart() {
+    const ctx = document.getElementById('progressChart');
+    if (!ctx) return;
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Andi Wijaya', 'Budi Santoso', 'Citra Dewi', 'Dedi Rahman', 'Eka Sari'],
+            datasets: [{
+                label: 'Progres Harian (%)',
+                data: [85, 92, 78, 88, 95],
+                backgroundColor: [
+                    '#3498db',
+                    '#27ae60',
+                    '#f39c12',
+                    '#e74c3c',
+                    '#9b59b6'
+                ],
+                borderColor: [
+                    '#2980b9',
+                    '#229954',
+                    '#e67e22',
+                    '#c0392b',
+                    '#8e44ad'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+// Initialize Kurva S Chart
+function initKurvaChart() {
+    const ctx = document.getElementById('kurvaChart');
+    if (!ctx) return;
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'],
+            datasets: [{
+                label: 'Target (%)',
+                data: [8, 17, 25, 35, 45, 55, 65, 75, 83, 90, 96, 100],
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                tension: 0.4
+            }, {
+                label: 'Realisasi (%)',
+                data: [10, 19, 28, 38, 47, 58, 68, 77, 85, 92, 97, 100],
+                borderColor: '#27ae60',
+                backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize dashboard map immediately
+    setTimeout(initDashboardMap, 500);
+    
+    // Add click handlers for progress bars
+    document.querySelectorAll('.progress-bar').forEach(bar => {
+        bar.addEventListener('click', function() {
+            const fill = this.querySelector('.progress-fill');
+            const currentWidth = parseInt(fill.style.width) || 0;
+            const newWidth = Math.min(currentWidth + 10, 100);
+            fill.style.width = newWidth + '%';
+        });
+    });
+});
+
+// Add custom CSS for map icons
+const style = document.createElement('style');
+style.textContent = `
+    .custom-div-icon {
+        background: transparent;
+        border: none;
+        text-align: center;
+    }
+    
+    .leaflet-popup-content {
+        margin: 8px 12px;
+        line-height: 1.4;
+    }
+    
+    .custom-popup h4 {
+        margin: 0 0 8px 0;
+        color: #2c3e50;
+        font-size: 14px;
+    }
+    
+    .custom-popup p {
+        margin: 4px 0;
+        font-size: 12px;
+        color: #34495e;
+    }
+`;
+document.head.appendChild(style);
+</script>
 <body>
     <div class="header">
         <h1><i class="fas fa-tint"></i> SKOPI</h1>
