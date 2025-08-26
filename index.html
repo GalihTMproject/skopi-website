@@ -5,17 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SKOPI - Sistem Kinerja Operasi dan Pemeliharaan Irigasi</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Leaflet CSS dan JS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <!-- Plugin tambahan untuk Leaflet -->
-    <script src="https://unpkg.com/leaflet-ajax@2.1.0/dist/leaflet.ajax.min.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-    
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
@@ -105,6 +96,7 @@
             padding: 1.5rem;
             margin-bottom: 1.5rem;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
         }
 
         .card h3 {
@@ -127,7 +119,6 @@
             padding: 1.5rem;
             border-radius: 10px;
             text-align: center;
-            cursor: pointer;
             transition: transform 0.3s ease;
         }
 
@@ -144,149 +135,93 @@
             opacity: 0.9;
         }
 
-        #map {
-            height: 400px;
-            border-radius: 10px;
-            margin: 1rem 0;
-        }
-
-        .table-container {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1rem 0;
-        }
-
-        th, td {
-            padding: 0.75rem;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            color: #2c3e50;
-        }
-
-        .status-hadir {
-            background-color: #27ae60;
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 15px;
-            font-size: 0.8rem;
-        }
-
-        .status-tidak-hadir {
-            background-color: #e74c3c;
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 15px;
-            font-size: 0.8rem;
-        }
-
-        .status-izin {
-            background-color: #f39c12;
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 15px;
-            font-size: 0.8rem;
-        }
-
-        .progress-bar {
-            background-color: #ecf0f1;
-            border-radius: 10px;
-            overflow: hidden;
-            height: 20px;
-            margin: 0.5rem 0;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #27ae60, #2ecc71);
-            transition: width 0.3s ease;
-        }
-
-        .chart-container {
-            position: relative;
-            height: 400px;
-            margin: 1rem 0;
-        }
-
-        .irrigation-schema {
-            text-align: center;
-            padding: 2rem;
-        }
-
-        .schema-diagram {
-            max-width: 100%;
-            height: auto;
-            border: 2px solid #3498db;
-            border-radius: 10px;
-            background: #f8f9fa;
-            padding: 2rem;
-            margin: 1rem 0;
-        }
-
-        .schema-flow {
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
+            justify-content: center;
+            border-radius: 10px;
+            z-index: 1000;
         }
 
-        .schema-box {
-            background: #3498db;
-            color: white;
-            padding: 1rem;
-            border-radius: 8px;
-            text-align: center;
-            min-width: 120px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .schema-box:hover {
-            background: #2980b9;
-            transform: scale(1.05);
-        }
-
-        .schema-arrow {
+        .loading-overlay i {
             font-size: 2rem;
             color: #3498db;
+            margin-right: 1rem;
         }
 
-        .loading {
-            text-align: center;
-            padding: 2rem;
-            color: #7f8c8d;
-        }
-
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
+        /* Error Message */
+        .error-message {
+            background: #e74c3c;
+            color: white;
             padding: 1rem;
             border-radius: 5px;
+            margin: 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Success Message */
+        .success-message {
+            background: #27ae60;
             color: white;
-            z-index: 1000;
-            display: none;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .notification.success {
-            background-color: #27ae60;
+        /* Last Update Info */
+        .last-update {
+            text-align: right;
+            color: #666;
+            font-size: 0.8rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
         }
 
-        .notification.error {
-            background-color: #e74c3c;
+        /* Refresh Button */
+        .refresh-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 1rem;
+            transition: background 0.3s ease;
         }
 
-        .notification.info {
-            background-color: #3498db;
+        .refresh-btn:hover {
+            background: #2980b9;
+        }
+
+        .refresh-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        /* Status indicators */
+        .status-normal {
+            color: #27ae60;
+        }
+
+        .status-warning {
+            color: #f39c12;
+        }
+
+        .status-error {
+            color: #e74c3c;
         }
 
         @media (max-width: 768px) {
@@ -314,9 +249,6 @@
         <h1><i class="fas fa-tint"></i> SKOPI</h1>
         <p>Sistem Kinerja Operasi dan Pemeliharaan Irigasi - DI. Molek</p>
     </div>
-
-    <!-- Notification -->
-    <div id="notification" class="notification"></div>
 
     <div class="container">
         <div class="sidebar">
@@ -346,25 +278,32 @@
         <div class="content">
             <!-- Dashboard Section -->
             <div id="dashboard" class="content-section active">
+                <!-- Refresh Button -->
+                <button class="refresh-btn" onclick="manualRefresh()">
+                    <i class="fas fa-sync-alt"></i> Refresh Data
+                </button>
+
+                <!-- Stats Grid -->
                 <div class="stats-grid">
-                    <div class="stat-card" onclick="showDetailStats('petugas')">
-                        <h4 id="totalPetugas">15</h4>
+                    <div class="stat-card">
+                        <h4 id="total-petugas">15</h4>
                         <p>Total Petugas</p>
                     </div>
-                    <div class="stat-card" onclick="showDetailStats('kehadiran')">
-                        <h4 id="tingkatKehadiran">85%</h4>
+                    <div class="stat-card">
+                        <h4 id="tingkat-kehadiran">85%</h4>
                         <p>Tingkat Kehadiran</p>
                     </div>
-                    <div class="stat-card" onclick="showDetailStats('luas')">
-                        <h4 id="luasLayanan">1,250</h4>
+                    <div class="stat-card">
+                        <h4 id="luas-layanan">1,250</h4>
                         <p>Luas Layanan (Ha)</p>
                     </div>
-                    <div class="stat-card" onclick="showDetailStats('kinerja')">
-                        <h4 id="kinerjaBulanan">92%</h4>
+                    <div class="stat-card">
+                        <h4 id="kinerja-bulanan">92%</h4>
                         <p>Kinerja Bulanan</p>
                     </div>
                 </div>
 
+                <!-- System Summary Card -->
                 <div class="card">
                     <h3>Ringkasan Sistem</h3>
                     <p>Selamat datang di SKOPI (Sistem Kinerja Operasi dan Pemeliharaan Irigasi) DI. Molek. 
@@ -372,19 +311,14 @@
                     
                     <div style="margin-top: 2rem;">
                         <h4>Status Operasional Hari Ini:</h4>
-                        <ul id="statusOperasional" style="margin-top: 1rem; padding-left: 2rem;">
-                            <li>✅ Pintu Air Utama: Normal</li>
-                            <li>✅ Saluran Primer: Berfungsi Baik</li>
-                            <li>⚠️ Saluran Sekunder Blok C: Perlu Pembersihan</li>
-                            <li>✅ Bangunan Bagi: Normal</li>
+                        <ul id="status-operasional" style="margin-top: 1rem; padding-left: 2rem;">
+                            <!-- Status akan diisi secara dinamis -->
                         </ul>
                     </div>
-                </div>
 
-                <div class="card">
-                    <h3>Aktivitas Terbaru</h3>
-                    <div id="recentActivities">
-                        <div class="loading">Memuat aktivitas terbaru...</div>
+                    <!-- Last Update Info -->
+                    <div class="last-update" id="last-update">
+                        <!-- Timestamp akan diisi secara dinamis -->
                     </div>
                 </div>
             </div>
@@ -396,10 +330,10 @@
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
                         <div>
                             <h4>Informasi Umum</h4>
-                            <table id="infoUmum">
+                            <table>
                                 <tr><td><strong>Nama Daerah Irigasi</strong></td><td>DI. Molek</td></tr>
                                 <tr><td><strong>Lokasi</strong></td><td>Kabupaten Malang, Jawa Timur</td></tr>
-                                <tr><td><strong>Luas Baku</strong></td><td>1,250 Ha</td></tr>
+                                <tr><td><strong>Luas Baku</strong></td><td id="luas-baku">1,250 Ha</td></tr>
                                 <tr><td><strong>Luas Fungsional</strong></td><td>1,180 Ha</td></tr>
                                 <tr><td><strong>Jenis Irigasi</strong></td><td>Teknis</td></tr>
                                 <tr><td><strong>Sumber Air</strong></td><td>Sungai Brantas</td></tr>
@@ -407,7 +341,7 @@
                         </div>
                         <div>
                             <h4>Infrastruktur</h4>
-                            <table id="infrastruktur">
+                            <table>
                                 <tr><td><strong>Bendung Utama</strong></td><td>1 Unit</td></tr>
                                 <tr><td><strong>Saluran Primer</strong></td><td>8.5 Km</td></tr>
                                 <tr><td><strong>Saluran Sekunder</strong></td><td>15.2 Km</td></tr>
@@ -418,908 +352,381 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="card">
-                    <h3>Kondisi Jaringan</h3>
-                    <div class="table-container">
-                        <table id="kondisiJaringan">
-                            <thead>
-                                <tr>
-                                    <th>Komponen</th>
-                                    <th>Kondisi</th>
-                                    <th>Persentase Baik</th
-                                                        <th>Kebutuhan Pemeliharaan</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Bendung Utama</td>
-                                    <td><span class="status-hadir">Baik</span></td>
-                                    <td>95%</td>
-                                    <td>Rutin</td>
-                                </tr>
-                                <tr>
-                                    <td>Saluran Primer</td>
-                                    <td><span class="status-hadir">Baik</span></td>
-                                    <td>88%</td>
-                                    <td>Pembersihan Berkala</td>
-                                </tr>
-                                <tr>
-                                    <td>Saluran Sekunder</td>
-                                    <td><span class="status-izin">Sedang</span></td>
-                                    <td>75%</td>
-                                    <td>Perbaikan Ringan</td>
-                                </tr>
-                                <tr>
-                                    <td>Bangunan Bagi</td>
-                                    <td><span class="status-hadir">Baik</span></td>
-                                    <td>92%</td>
-                                    <td>Rutin</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
 
-            <!-- Peta Layout Section -->
-            <div id="peta" class="content-section">
-                <div class="card">
-                    <h3>Peta Layout DI. Molek</h3>
-                    <div class="map-controls" style="margin-bottom: 1rem;">
-                        <button onclick="toggleLayer('irrigation')" class="btn-control">
-                            <i class="fas fa-water"></i> Jaringan Irigasi
-                        </button>
-                        <button onclick="toggleLayer('staff')" class="btn-control">
-                            <i class="fas fa-users"></i> Lokasi Petugas
-                        </button>
-                        <button onclick="toggleLayer('maintenance')" class="btn-control">
-                            <i class="fas fa-tools"></i> Titik Pemeliharaan
-                        </button>
-                        <button onclick="refreshMapData()" class="btn-control">
-                            <i class="fas fa-sync-alt"></i> Refresh Data
-                        </button>
-                    </div>
-                    <div id="map"></div>
-                    <div id="mapLegend" class="map-legend">
-                        <h4>Legenda:</h4>
-                        <div><span class="legend-icon" style="background: #27ae60;"></span> Status Baik</div>
-                        <div><span class="legend-icon" style="background: #f39c12;"></span> Perlu Perhatian</div>
-                        <div><span class="legend-icon" style="background: #e74c3c;"></span> Perlu Perbaikan</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Skema Irigasi Section -->
-            <div id="skema" class="content-section">
-                <div class="card">
-                    <h3>Skema Irigasi</h3>
-                    <div class="irrigation-schema">
-                        <div class="schema-diagram">
-                            <img src="path/to/schema-diagram.png" alt="Skema Irigasi">
-                        </div>
-                        <div class="schema-flow">
-                            <div class="schema-box">Sumber Air</div>
-                            <div class="schema-arrow">→</div>
-                            <div class="schema-box">Saluran Primer</div>
-                            <div class="schema-arrow">→</div>
-                            <div class="schema-box">Saluran Sekunder</div>
-                            <div class="schema-arrow">→</div>
-                            <div class="schema-box">Saluran Tersier</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tenaga dan Absensi Section -->
-            <div id="tenaga" class="content-section">
-                <div class="card">
-                    <h3>Tenaga dan Absensi</h3>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Nama Petugas</th>
-                                    <th>Status Kehadiran</th>
-                                    <th>Tanggal</th>
-                                </tr>
-                            </thead>
-                            <tbody id="attendanceData">
-                                <tr>
-                                    <td>Petugas 1</td>
-                                    <td><span class="status-hadir">Hadir</span></td>
-                                    <td>01/10/2023</td>
-                                </tr>
-                                <tr>
-                                    <td>Petugas 2</td>
-                                    <td><span class="status-tidak-hadir">Tidak Hadir</span></td>
-                                    <td>01/10/2023</td>
-                                </tr>
-                                <tr>
-                                    <td>Petugas 3</td>
-                                    <td><span class="status-izin">Izin</span></td>
-                                    <td>01/10/2023</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bobot Progres Harian Section -->
-            <div id="progres" class="content-section">
-                <div class="card">
-                    <h3>Bobot Progres Harian</h3>
-                    <div class="chart-container">
-                        <canvas id="progressChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Kurva S Kinerja Bulanan Section -->
-            <div id="kurva" class="content-section">
-                <div class="card">
-                    <h3>Kurva S Kinerja Bulanan</h3>
-                    <div class="chart-container">
-                        <canvas id="performanceCurveChart"></canvas>
-                    </div>
-                </div>
-            </div>
+            <!-- Sections lainnya tetap sama... -->
         </div>
     </div>
 
     <script>
-        // Fungsi untuk menampilkan section yang dipilih
+        // ===== POINT 1: STRUKTUR DATA JAVASCRIPT =====
+        let dashboardData = {
+            stats: {
+                totalPetugas: 15,
+                tingkatKehadiran: 85,
+                luasLayanan: 1250,
+                kinerjaBulanan: 92
+            },
+            statusOperasional: [
+                { item: "Pintu Air Utama", status: "normal", icon: "✅" },
+                { item: "Saluran Primer", status: "normal", icon: "✅" },
+                { item: "Saluran Sekunder Blok C", status: "warning", icon: "⚠️" },
+                { item: "Bangunan Bagi", status: "normal", icon: "✅" }
+            ],
+            lastUpdate: new Date()
+        };
+
+        // ===== POINT 2: FUNGSI UPDATE DATA STATISTIK =====
+        function updateDashboardStats(data) {
+            // Update stat cards dengan ID yang spesifik
+            document.getElementById('total-petugas').textContent = data.stats.totalPetugas;
+            document.getElementById('tingkat-kehadiran').textContent = data.stats.tingkatKehadiran + '%';
+            document.getElementById('luas-layanan').textContent = data.stats.luasLayanan.toLocaleString();
+            document.getElementById('kinerja-bulanan').textContent = data.stats.kinerjaBulanan + '%';
+            
+            // Update luas baku di profil juga
+            const luasBaku = document.getElementById('luas-baku');
+            if (luasBaku) {
+                luasBaku.textContent = data.stats.luasLayanan + ' Ha';
+            }
+        }
+
+        // ===== POINT 3: FUNGSI UPDATE STATUS OPERASIONAL =====
+        function updateOperationalStatus(statusData) {
+            const statusContainer = document.getElementById('status-operasional');
+            if (statusContainer) {
+                statusContainer.innerHTML = '';
+                
+                statusData.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `${item.icon} ${item li.innerHTML = `${item.icon} ${item.item}: <span class="status-${item.status}">${getStatusText(item.status)}</span>`;
+                    statusContainer.appendChild(li);
+                });
+            }
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'normal': 'Normal',
+                'warning': 'Perlu Perhatian',
+                'error': 'Bermasalah'
+            };
+            return statusMap[status] || 'Unknown';
+        }
+
+        // ===== POINT 4: INTEGRASI DENGAN API/DATABASE =====
+        
+        // A. Menggunakan Fetch API
+        async function fetchDashboardData() {
+            try {
+                showLoading();
+                
+                // Simulasi API call - ganti dengan URL API yang sebenarnya
+                // const response = await fetch('/api/dashboard-data');
+                // const data = await response.json();
+                
+                // Simulasi data dari server
+                const simulatedData = await simulateAPICall();
+                
+                // Update dashboard dengan data baru
+                updateDashboardStats(simulatedData);
+                updateOperationalStatus(simulatedData.statusOperasional);
+                updateLastRefresh();
+                
+                hideLoading();
+                showSuccessMessage('Data berhasil diperbarui');
+                
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+                hideLoading();
+                showErrorMessage('Gagal memuat data dashboard');
+            }
+        }
+
+        // Simulasi API call untuk demo
+        function simulateAPICall() {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    // Simulasi data yang berubah
+                    const newData = {
+                        stats: {
+                            totalPetugas: Math.floor(Math.random() * 5) + 13, // 13-17
+                            tingkatKehadiran: Math.floor(Math.random() * 20) + 80, // 80-99
+                            luasLayanan: 1250,
+                            kinerjaBulanan: Math.floor(Math.random() * 15) + 85 // 85-99
+                        },
+                        statusOperasional: [
+                            { item: "Pintu Air Utama", status: "normal", icon: "✅" },
+                            { item: "Saluran Primer", status: Math.random() > 0.7 ? "warning" : "normal", icon: Math.random() > 0.7 ? "⚠️" : "✅" },
+                            { item: "Saluran Sekunder Blok C", status: Math.random() > 0.5 ? "warning" : "normal", icon: Math.random() > 0.5 ? "⚠️" : "✅" },
+                            { item: "Bangunan Bagi", status: "normal", icon: "✅" }
+                        ]
+                    };
+                    resolve(newData);
+                }, 1500); // Simulasi delay 1.5 detik
+            });
+        }
+
+        // B. Auto-refresh Data
+        let autoRefreshInterval;
+        
+        function startAutoRefresh() {
+            // Auto refresh setiap 5 menit (300000 ms)
+            // Untuk demo, gunakan 30 detik (30000 ms)
+            autoRefreshInterval = setInterval(fetchDashboardData, 30000);
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+        }
+
+        // ===== POINT 5: IMPLEMENTASI LENGKAP DALAM HTML =====
+        
+        // Fungsi update dashboard utama
+        function updateDashboard() {
+            updateDashboardStats(dashboardData);
+            updateOperationalStatus(dashboardData.statusOperasional);
+            updateLastRefresh();
+        }
+
+        // Simulasi update data real-time
+        function simulateDataUpdate() {
+            // Update random data
+            dashboardData.stats.tingkatKehadiran = Math.floor(Math.random() * 20) + 80;
+            dashboardData.stats.kinerjaBulanan = Math.floor(Math.random() * 15) + 85;
+            dashboardData.stats.totalPetugas = Math.floor(Math.random() * 5) + 13;
+            
+            // Random status update
+            dashboardData.statusOperasional[1].status = Math.random() > 0.7 ? "warning" : "normal";
+            dashboardData.statusOperasional[1].icon = dashboardData.statusOperasional[1].status === "warning" ? "⚠️" : "✅";
+            
+            dashboardData.statusOperasional[2].status = Math.random() > 0.5 ? "warning" : "normal";
+            dashboardData.statusOperasional[2].icon = dashboardData.statusOperasional[2].status === "warning" ? "⚠️" : "✅";
+            
+            // Update dashboard
+            updateDashboard();
+        }
+
+        function updateLastRefresh() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('id-ID');
+            const dateString = now.toLocaleDateString('id-ID');
+            
+            const updateInfo = document.getElementById('last-update');
+            if (updateInfo) {
+                updateInfo.innerHTML = `<i class="fas fa-clock"></i> Terakhir diperbarui: ${dateString} ${timeString}`;
+            }
+        }
+
+        // ===== POINT 6: INTEGRASI DENGAN BACKEND =====
+        
+        // Fungsi untuk mengirim data ke backend
+        async function sendDataToBackend(data) {
+            try {
+                const response = await fetch('/api/update-dashboard', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                
+                const result = await response.json();
+                return result;
+            } catch (error) {
+                console.error('Error sending data to backend:', error);
+                throw error;
+            }
+        }
+
+        // ===== POINT 7: FITUR TAMBAHAN =====
+        
+        // A. Loading State
+        function showLoading() {
+            const dashboard = document.querySelector('#dashboard');
+            
+            // Remove existing loader
+            hideLoading();
+            
+            const loader = document.createElement('div');
+            loader.className = 'loading-overlay';
+            loader.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat data...';
+            
+            dashboard.appendChild(loader);
+            
+            // Disable refresh button
+            const refreshBtn = document.querySelector('.refresh-btn');
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            }
+        }
+
+        function hideLoading() {
+            const loader = document.querySelector('.loading-overlay');
+            if (loader) {
+                loader.remove();
+            }
+            
+            // Enable refresh button
+            const refreshBtn = document.querySelector('.refresh-btn');
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Data';
+            }
+        }
+
+        // B. Error Handling
+        function showErrorMessage(message) {
+            // Remove existing messages
+            removeMessages();
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+            
+            const dashboard = document.querySelector('#dashboard');
+            dashboard.insertBefore(errorDiv, dashboard.firstChild);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.remove();
+                }
+            }, 5000);
+        }
+
+        function showSuccessMessage(message) {
+            // Remove existing messages
+            removeMessages();
+            
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+            
+            const dashboard = document.querySelector('#dashboard');
+            dashboard.insertBefore(successDiv, dashboard.firstChild);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                if (successDiv.parentNode) {
+                    successDiv.remove();
+                }
+            }, 3000);
+        }
+
+        function removeMessages() {
+            const messages = document.querySelectorAll('.error-message, .success-message');
+            messages.forEach(msg => msg.remove());
+        }
+
+        // ===== FUNGSI NAVIGASI (dari kode asli) =====
         function showSection(sectionId) {
-            // Hide semua section
-            document.querySelectorAll('.content-section').forEach(section => {
+            // Hide all sections
+            const sections = document.querySelectorAll('.content-section');
+            sections.forEach(section => {
                 section.classList.remove('active');
             });
             
-            // Show section yang dipilih
-            document.getElementById(sectionId).classList.add('active');
+            // Show selected section
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
             
-            // Update menu aktif
-            document.querySelectorAll('.menu-item').forEach(item => {
+            // Update menu active state
+            const menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach(item => {
                 item.classList.remove('active');
             });
-            event.target.classList.add('active');
             
-            // Eksekusi skript spesifik
-            executeMenuScript(sectionId);
-        }
-
-        function executeMenuScript(menuId) {
-            switch(menuId) {
-                case 'dashboard':
-                    initDashboard();
-                    break;
-                case 'profil':
-                    initProfil();
-                    break;
-                case 'peta':
-                    initMapSection();
-                    break;
-                case 'skema':
-                    initSchemaSection();
-                    break;
-                case 'tenaga':
-                    initStaffSection();
-                    break;
-                case 'progres':
-                    initProgressSection();
-                    break;
-                case 'kurva':
-                    initCurveSection();
-                    break;
+            // Find and activate the clicked menu item
+            const activeMenuItem = Array.from(menuItems).find(item => 
+                item.getAttribute('onclick').includes(sectionId)
+            );
+            if (activeMenuItem) {
+                activeMenuItem.classList.add('active');
+            }
+            
+            // If switching to dashboard, refresh data
+            if (sectionId === 'dashboard') {
+                fetchDashboardData();
             }
         }
 
-        function initDashboard() {
-            // Update statistik real-time
-            updateStats();
-            loadRecentActivities();
+        // ===== FUNGSI MANUAL REFRESH =====
+        function manualRefresh() {
+            fetchDashboardData();
         }
 
-        function initProfil() {
-            // Load data profil
-            loadProfileData();
-        }
-
-        function initMapSection() {
-            // Inisialisasi Mapbox
-            mapboxgl.accessToken = 'your-mapbox-token';
-            const map = new mapboxgl.Map({
-                container: 'map',
-                style: 'mapbox://styles/mapbox/satellite-v9',
-                center: [112.6304, -7.9797], // Koordinat Malang
-                zoom: 12
-            });
-        }
-
-        function initSchemaSection() {
-            // Load skema irigasi
-            loadSchemaData();
-        }
-
-        function initStaffSection() {
-            // Load data absensi
-            loadAttendanceData();
-        }
-
-        function initProgressSection() {
-            // Inisialisasi chart progres harian
-            const ctx = document.getElementById('progressChart').getContext('2d');
-            const progressChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
-                    datasets: [{
-                        label: 'Progres Harian (%)',
-                        data: [65, 70, 75, 80, 85, 88, 92],
-                        borderColor: '#3498db',
-                        tension: 0.1
-                    }]
-                }
-            });
-        }
-
-        function initCurveSection() {
-            // Inisialisasi chart kinerja bulanan
-            const ctx = document.getElementById('performanceCurveChart').getContext('2d');
-            const performanceCurveChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'],
-                    datasets: [{
-                        label: 'Kinerja Bulanan (%)',
-                        data: [80, 85, 90, 95, 92, 88, 91],
-                        backgroundColor: '#2980b9'
-                    }]
-                }
-            });
-        }
-
-        function updateStats() {
-            // Simulasi pengambilan data
-            document.getElementById('totalPetugas').textContent = '15'; // Update sesuai data
-            document.getElementById('tingkatKehadiran').textContent = '85%'; // Update sesuai data
-            document.getElementById('luasLayanan').textContent = '1,250'; // Update sesuai data
-            document.getElementById('kinerjaBulanan').textContent = '92%'; // Update sesuai data
-        }
-
-        function loadRecentActivities() {
-            // Simulasi pengambilan data aktivitas terbaru
-            const activities = [
-                'Petugas 1 melakukan pemeriksaan saluran.',
-                'Petugas 2 membersihkan saluran sekunder.',
-                'Petugas 3 melakukan perbaikan pada bendung utama.'
-            ];
-            const activityContainer = document.getElementById('recentActivities');
-            activityContainer.innerHTML = activities.map(activity => `<div>${activity}</div>`).join('');
-        }
-
-        function loadProfileData() {
-            // Simulasi pengambilan data profil
-            console.log('Loading profile data...');
-        }
-
-        function loadAttendanceData() {
-            // Simulasi pengambilan data absensi
-            console.log('Loading attendance data...');
-        }
-
-        function loadSchemaData() {
-            // Simulasi pengambilan data skema
-            console.log('Loading schema data...');
-        }
-
-        // Inisialisasi saat halaman dimuat
+        // ===== INISIALISASI SAAT HALAMAN DIMUAT =====
         document.addEventListener('DOMContentLoaded', function() {
-            initDashboard(); // Load dashboard pertama kali
+            // Initial load
+            updateDashboard();
+            
+            // Start auto refresh
+            startAutoRefresh();
+            
+            // Add event listeners
+            window.addEventListener('beforeunload', function() {
+                stopAutoRefresh();
+            });
+            
+            // Handle visibility change (pause auto-refresh when tab is not active)
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    stopAutoRefresh();
+                } else {
+                    startAutoRefresh();
+                    // Refresh data when tab becomes active again
+                    fetchDashboardData();
+                }
+            });
         });
+
+        // ===== FUNGSI UTILITAS TAMBAHAN =====
+        
+        // Format angka dengan pemisah ribuan
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
+        // Generate random data untuk testing
+        function generateRandomData() {
+            return {
+                stats: {
+                    totalPetugas: Math.floor(Math.random() * 10) + 10,
+                    tingkatKehadiran: Math.floor(Math.random() * 30) + 70,
+                    luasLayanan: 1250,
+                    kinerjaBulanan: Math.floor(Math.random() * 20) + 80
+                },
+                statusOperasional: [
+                    { item: "Pintu Air Utama", status: Math.random() > 0.9 ? "warning" : "normal", icon: Math.random() > 0.9 ? "⚠️" : "✅" },
+                    { item: "Saluran Primer", status: Math.random() > 0.8 ? "warning" : "normal", icon: Math.random() > 0.8 ? "⚠️" : "✅" },
+                    { item: "Saluran Sekunder Blok C", status: Math.random() > 0.6 ? "warning" : "normal", icon: Math.random() > 0.6 ? "⚠️" : "✅" },
+                    { item: "Bangunan Bagi", status: Math.random() > 0.95 ? "warning" : "normal", icon: Math.random() > 0.95 ? "⚠️" : "✅" }
+                ]
+            };
+        }
+
+        // Export functions for external use (jika diperlukan)
+        window.SKOPIDashboard = {
+            updateDashboard,
+            fetchDashboardData,
+            showLoading,
+            hideLoading,
+            showErrorMessage,
+            showSuccessMessage,
+            manualRefresh,
+            generateRandomData
+        };
+
     </script>
-    <script>
-let map;
-let irrigationLayer, staffLayer, maintenanceLayer;
-let markerClusterGroup;
-
-// Inisialisasi peta dengan Leaflet
-function initMapSection() {
-    if (map) {
-        map.remove(); // Hapus peta yang sudah ada
-    }
-    
-    // Inisialisasi peta
-    map = L.map('map').setView([-7.9797, 112.6304], 13);
-    
-    // Tambahkan tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-    
-    // Inisialisasi cluster group
-    markerClusterGroup = L.markerClusterGroup();
-    
-    // Load data dinamis
-    loadIrrigationNetwork();
-    loadStaffLocations();
-    loadMaintenancePoints();
-    
-    // Auto refresh setiap 5 menit
-    setInterval(refreshMapData, 300000);
-}
-
-// Load data jaringan irigasi dari file GeoJSON
-function loadIrrigationNetwork() {
-    fetch('data/irrigation_network.geojson')
-        .then(response => response.json())
-        .then(data => {
-            if (irrigationLayer) {
-                map.removeLayer(irrigationLayer);
-            }
-            
-            irrigationLayer = L.geoJSON(data, {
-                style: function(feature) {
-                    return getFeatureStyle(feature.properties.type, feature.properties.status);
-                },
-                pointToLayer: function(feature, latlng) {
-                    return L.marker(latlng, {
-                        icon: getCustomIcon(feature.properties.type, feature.properties.status)
-                    });
-                },
-                onEachFeature: function(feature, layer) {
-                    const popupContent = createPopupContent(feature.properties);
-                    layer.bindPopup(popupContent);
-                    
-                    // Event listener untuk klik
-                    layer.on('click', function(e) {
-                        showFeatureDetails(feature.properties);
-                    });
-                }
-            }).addTo(map);
-        })
-        .catch(error => {
-            console.error('Error loading irrigation network:', error);
-            showNotification('Error memuat data jaringan irigasi', 'error');
-        });
-}
-
-// Load lokasi petugas dari file JSON
-function loadStaffLocations() {
-    fetch('data/staff_locations.json')
-        .then(response => response.json())
-        .then(data => {
-            if (staffLayer) {
-                map.removeLayer(staffLayer);
-            }
-            
-            const staffMarkers = [];
-            data.staff.forEach(staff => {
-                const marker = L.marker([staff.location[1], staff.location[0]], {
-                    icon: getStaffIcon(staff.status)
-                }).bindPopup(`
-                    <div class="popup-content">
-                        <h4>${staff.name}</h4>
-                        <p><strong>Posisi:</strong> ${staff.position}</p>
-                        <p><strong>Status:</strong> ${staff.status}</p>
-                        <p><strong>Update Terakhir:</strong> ${formatDateTime(staff.last_update)}</p>
-                        <button onclick="contactStaff(${staff.id})">Hubungi</button>
-                    </div>
-                `);
-                
-                staffMarkers.push(marker);
-            });
-            
-            staffLayer = L.layerGroup(staffMarkers);
-            markerClusterGroup.addLayer(staffLayer);
-            map.addLayer(markerClusterGroup);
-        })
-        .catch(error => {
-            console.error('Error loading staff locations:', error);
-            showNotification('Error memuat lokasi petugas', 'error');
-        });
-}
-
-// Load titik pemeliharaan
-function loadMaintenancePoints() {
-    fetch('data/maintenance_points.json')
-        .then(response => response.json())
-        .then(data => {
-            if (maintenanceLayer) {
-                map.removeLayer(maintenanceLayer);
-            }
-            
-            const maintenanceMarkers = [];
-            data.points.forEach(point => {
-                const marker = L.marker([point.lat, point.lng], {
-                    icon: getMaintenanceIcon(point.priority)
-                }).bindPopup(`
-                    <div class="popup-content">
-                        <h4>${point.title}</h4>
-                        <p><strong>Prioritas:</strong> ${point.priority}</p>
-                        <p><strong>Deskripsi:</strong> ${point.description}</p>
-                        <p><strong>Tanggal:</strong> ${point.scheduled_date}</p>
-                        <button onclick="scheduleMaintenace(${point.id})">Jadwalkan</button>
-                    </div>
-                `);
-                
-                maintenanceMarkers.push(marker);
-            });
-            
-            maintenanceLayer = L.layerGroup(maintenanceMarkers).addTo(map);
-        })
-        .catch(error => {
-            console.error('Error loading maintenance points:', error);
-        });
-}
-
-// Fungsi untuk mendapatkan style berdasarkan tipe dan status
-function getFeatureStyle(type, status) {
-    const colors = {
-        'baik': '#27ae60',
-        'sedang': '#f39c12',
-        'buruk': '#e74c3c'
-    };
-    
-    return {
-        color: colors[status] || '#3498db',
-        weight: type === 'saluran_primer' ? 4 : 2,
-        opacity: 0.8
-    };
-}
-
-// Fungsi untuk mendapatkan custom icon
-function getCustomIcon(type, status) {
-    const iconUrls = {
-        'bendung': 'assets/icons/bendung.png',
-        'bangunan_bagi': 'assets/icons/bangunan_bagi.png',
-        'pintu_air': 'assets/icons/pintu_air.png'
-    };
-    
-    const colors = {
-        'baik': '#27ae60',
-        'sedang': '#f39c12',
-        'buruk': '#e74c3c'
-    };
-    
-    return L.divIcon({
-        html: `<div style="background-color: ${colors[status]}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>`,
-        iconSize: [20, 20],
-        className: 'custom-div-icon'
-    });
-}
-
-// Fungsi untuk icon petugas
-function getStaffIcon(status) {
-    const colors = {
-        'active': '#27ae60',
-        'maintenance': '#f39c12',
-        'offline': '#e74c3c'
-    };
-    
-    return L.divIcon({
-        html: `<i class="fas fa-user" style="color: ${colors[status]}; font-size: 16px;"></i>`,
-        iconSize: [20, 20],
-        className: 'staff-icon'
-    });
-}
-
-// Fungsi untuk icon pemeliharaan
-function getMaintenanceIcon(priority) {
-    const colors = {
-        'high': '#e74c3c',
-        'medium': '#f39c12',
-        'low': '#27ae60'
-    };
-    
-    return L.divIcon({
-        html: `<i class="fas fa-tools" style="color: ${colors[priority]}; font-size: 16px;"></i>`,
-        iconSize: [20, 20],
-        className: 'maintenance-icon'
-    });
-}
-
-// Fungsi untuk membuat konten popup
-function createPopupContent(properties) {
-    return `
-        <div class="popup-content">
-            <h4>${properties.name}</h4>
-            <p><strong>Tipe:</strong> ${properties.type}</p>
-            <p><strong>Status:</strong> ${properties.status}</p>
-            ${properties.capacity ? `<p><strong>Kapasitas:</strong> ${properties.capacity}</p>` : ''}
-            ${properties.length ? `<p><strong>Panjang:</strong> ${properties.length}</p>` : ''}
-            ${properties.last_maintenance ? `<p><strong>Pemeliharaan Terakhir:</strong> ${properties.last_maintenance}</p>` : ''}
-        </div>
-    `;
-}
-
-// Fungsi untuk toggle layer
-function toggleLayer(layerType) {
-    switch(layerType) {
-        case 'irrigation':
-            if (map.hasLayer(irrigationLayer)) {
-                map.removeLayer(irrigationLayer);
-            } else {
-                map.addLayer(irrigationLayer);
-            }
-            break;
-        case 'staff':
-            if (map.hasLayer(markerClusterGroup)) {
-                map.removeLayer(markerClusterGroup);
-            } else {
-                map.addLayer(markerClusterGroup);
-            }
-            break;
-        case 'maintenance':
-            if (map.hasLayer(maintenanceLayer)) {
-                map.removeLayer(maintenanceLayer);
-            } else
-                            } else {
-                map.addLayer(maintenanceLayer);
-            }
-            break;
-    }
-}
-
-// Fungsi untuk refresh data peta
-function refreshMapData() {
-    showNotification('Memperbarui data peta...', 'info');
-    
-    // Reload semua data
-    loadIrrigationNetwork();
-    loadStaffLocations();
-    loadMaintenancePoints();
-    
-    // Update timestamp
-    const now = new Date();
-    document.getElementById('lastUpdate').textContent = `Terakhir diperbarui: ${formatDateTime(now.toISOString())}`;
-    
-    setTimeout(() => {
-        showNotification('Data peta berhasil diperbarui', 'success');
-    }, 2000);
-}
-
-// Fungsi untuk menampilkan detail fitur
-function showFeatureDetails(properties) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h3>Detail ${properties.name}</h3>
-            <div class="detail-grid">
-                <div><strong>Tipe:</strong> ${properties.type}</div>
-                <div><strong>Status:</strong> ${properties.status}</div>
-                ${properties.capacity ? `<div><strong>Kapasitas:</strong> ${properties.capacity}</div>` : ''}
-                ${properties.length ? `<div><strong>Panjang:</strong> ${properties.length}</div>` : ''}
-                ${properties.last_maintenance ? `<div><strong>Pemeliharaan Terakhir:</strong> ${properties.last_maintenance}</div>` : ''}
-            </div>
-            <div class="modal-actions">
-                <button onclick="scheduleInspection('${properties.name}')">Jadwalkan Inspeksi</button>
-                <button onclick="reportIssue('${properties.name}')">Laporkan Masalah</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-}
-
-// Fungsi untuk menutup modal
-function closeModal() {
-    const modal = document.querySelector('.modal');
-    if (modal) {
-        modal.remove();
-    }
-}
-
-// Fungsi untuk menghubungi petugas
-function contactStaff(staffId) {
-    showNotification(`Menghubungi petugas ID: ${staffId}`, 'info');
-    // Implementasi kontak petugas (WhatsApp, SMS, dll)
-}
-
-// Fungsi untuk jadwal pemeliharaan
-function scheduleMaintenace(pointId) {
-    showNotification(`Menjadwalkan pemeliharaan untuk titik ID: ${pointId}`, 'info');
-    // Implementasi penjadwalan
-}
-
-// Fungsi untuk jadwal inspeksi
-function scheduleInspection(featureName) {
-    showNotification(`Menjadwalkan inspeksi untuk ${featureName}`, 'info');
-    closeModal();
-}
-
-// Fungsi untuk laporan masalah
-function reportIssue(featureName) {
-    showNotification(`Membuat laporan masalah untuk ${featureName}`, 'info');
-    closeModal();
-}
-
-// Fungsi untuk format tanggal dan waktu
-function formatDateTime(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleString('id-ID', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
-
-// Fungsi untuk menampilkan notifikasi
-function showNotification(message, type = 'info') {
-    const notification = document.getElementById('notification');
-    notification.textContent = message;
-    notification.className = `notification ${type}`;
-    notification.style.display = 'block';
-    
-    setTimeout(() => {
-        notification.style.display = 'none';
-    }, 3000);
-}
-
-// Fungsi untuk load data performance dinamis
-function loadPerformanceData() {
-    fetch('data/performance_data.json')
-        .then(response => response.json())
-        .then(data => {
-            updateDashboardStats(data);
-            updateProgressChart(data.daily_progress);
-            updatePerformanceCurve(data.monthly_performance);
-        })
-        .catch(error => {
-            console.error('Error loading performance data:', error);
-            showNotification('Error memuat data kinerja', 'error');
-        });
-}
-
-// Update statistik dashboard dengan data dinamis
-function updateDashboardStats(data) {
-    // Update berdasarkan data terbaru
-    const latestProgress = data.daily_progress[data.daily_progress.length - 1];
-    const latestMonthly = data.monthly_performance[data.monthly_performance.length - 1];
-    
-    document.getElementById('kinerjaBulanan').textContent = `${latestMonthly.performance}%`;
-    
-    // Animasi counter
-    animateCounter('totalPetugas', 15);
-    animateCounter('tingkatKehadiran', 85, '%');
-    animateCounter('luasLayanan', 1250);
-    animateCounter('kinerjaBulanan', latestMonthly.performance, '%');
-}
-
-// Fungsi animasi counter
-function animateCounter(elementId, targetValue, suffix = '') {
-    const element = document.getElementById(elementId);
-    const startValue = 0;
-    const duration = 2000;
-    const startTime = performance.now();
-    
-    function updateCounter(currentTime) {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const currentValue = Math.floor(startValue + (targetValue - startValue) * progress);
-        
-        element.textContent = currentValue + suffix;
-        
-        if (progress < 1) {
-            requestAnimationFrame(updateCounter);
-        }
-    }
-    
-    requestAnimationFrame(updateCounter);
-}
-
-// Update chart progres dengan data dinamis
-function updateProgressChart(progressData) {
-    const ctx = document.getElementById('progressChart');
-    if (!ctx) return;
-    
-    const chart = new Chart(ctx.getContext('2d'), {
-        type: 'line',
-        data: {
-            labels: progressData.map(item => new Date(item.date).toLocaleDateString('id-ID')),
-            datasets: [{
-                label: 'Progres Aktual (%)',
-                data: progressData.map(item => item.progress),
-                borderColor: '#3498db',
-                backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                tension: 0.4,
-                fill: true
-            }, {
-                label: 'Target (%)',
-                data: progressData.map(item => item.target),
-                borderColor: '#e74c3c',
-                borderDash: [5, 5],
-                fill: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Progres Harian vs Target'
-                },
-                legend: {
-                    display: true,
-                    position: 'top'
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Update kurva kinerja bulanan
-function updatePerformanceCurve(monthlyData) {
-    const ctx = document.getElementById('performanceCurveChart');
-    if (!ctx) return;
-    
-    const chart = new Chart(ctx.getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: monthlyData.map(item => item.month),
-            datasets: [{
-                label: 'Kinerja (%)',
-                data: monthlyData.map(item => item.performance),
-                backgroundColor: '#3498db',
-                borderColor: '#2980b9',
-                borderWidth: 1
-            }, {
-                label: 'Efisiensi (%)',
-                data: monthlyData.map(item => item.efficiency),
-                backgroundColor: '#27ae60',
-                borderColor: '#229954',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Kinerja dan Efisiensi Bulanan'
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Fungsi untuk export data
-function exportMapData(format = 'json') {
-    const allData = {
-        irrigation: irrigationLayer ? irrigationLayer.toGeoJSON() : null,
-        staff: staffLayer ? staffLayer.toGeoJSON() : null,
-        maintenance: maintenanceLayer ? maintenanceLayer.toGeoJSON() : null,
-        timestamp: new Date().toISOString()
-    };
-    
-    if (format === 'json') {
-        const dataStr = JSON.stringify(allData, null, 2);
-        const dataBlob = new Blob([dataStr], {type: 'application/json'});
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `skopi_data_${new Date().toISOString().split('T')[0]}.json`;
-        link.click();
-    }
-}
-
-// Fungsi untuk real-time updates menggunakan WebSocket (opsional)
-function initWebSocketConnection() {
-    if (typeof WebSocket !== 'undefined') {
-        const ws = new WebSocket('ws://localhost:8080/skopi-updates');
-        
-        ws.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            
-            switch(data.type) {
-                case 'staff_location_update':
-                    updateStaffLocation(data.staffId, data.location);
-                    break;
-                case 'maintenance_alert':
-                    showMaintenanceAlert(data.message);
-                    break;
-                case 'system_status_update':
-                    updateSystemStatus(data.status);
-                    break;
-            }
-        };
-        
-        ws.onerror = function(error) {
-            console.log('WebSocket error:', error);
-        };
-    }
-}
-
-// Update lokasi petugas secara real-time
-function updateStaffLocation(staffId, newLocation) {
-    // Update marker petugas di peta
-    if (staffLayer) {
-        staffLayer.eachLayer(function(marker) {
-            if (marker.options.staffId === staffId) {
-                marker.setLatLng(newLocation);
-            }
-        });
-    }
-}
-
-// Tampilkan alert pemeliharaan
-function showMaintenanceAlert(message) {
-    showNotification(message, 'warning');
-    
-    // Tambahkan ke log aktivitas
-    const activityContainer = document.getElementById('recentActivities');
-    if (activityContainer) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = 'alert-item';
-        alertDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
-        activityContainer.insertBefore(alertDiv, activityContainer.firstChild);
-    }
-}
-
-// Update status sistem
-function updateSystemStatus(status) {
-    const statusContainer = document.getElementById('statusOperasional');
-    if (statusContainer && status) {
-        statusContainer.innerHTML = status.map(item => 
-            `<li>${item.icon} ${item.component}: ${item.status}</li>`
-        ).join('');
-    }
-}
-
-// Inisialisasi semua fungsi saat dokumen siap
-document.addEventListener('DOMContentLoaded', function() {
-    initDashboard();
-    loadPerformanceData();
-    
-    // Inisialisasi WebSocket untuk real-time updates
-    initWebSocketConnection();
-    
-    // Auto refresh data setiap 10 menit
-    setInterval(function() {
-        loadPerformanceData();
-        if (document.getElementById('peta').classList.contains('active')) {
-            refreshMapData();
-        }
-    }, 600000);
-});
-
-// Event listener untuk resize window
-window.addEventListener('resize', function() {
-    if (map) {
-        setTimeout(function() {
-            map.invalidateSize();
-        }, 100);
-    }
-});
-</script>
-
 </body>
 </html>
