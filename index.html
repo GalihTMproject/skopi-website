@@ -279,6 +279,112 @@
                 grid-template-columns: 1fr;
             }
         }
+        .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.refresh-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.refresh-btn:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.monitoring-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.monitoring-item {
+    text-align: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #3498db;
+}
+
+.monitoring-item h5 {
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+    font-size: 0.9rem;
+}
+
+.monitoring-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #3498db;
+}
+
+.monitoring-value.normal {
+    color: #27ae60;
+}
+
+.monitoring-value.warning {
+    color: #f39c12;
+}
+
+.alert-info {
+    background: #e3f2fd;
+    border: 1px solid #2196f3;
+    border-radius: 5px;
+    padding: 1rem;
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.alert-info i {
+    color: #2196f3;
+}
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #27ae60;
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 5px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.stat-card h4 {
+    transition: transform 0.2s ease;
+}
     </style>
 </head>
 <body>
@@ -286,7 +392,71 @@
         <h1><i class="fas fa-tint"></i> SKOPI</h1>
         <p>Sistem Kinerja Operasi dan Pemeliharaan Irigasi - DI. Molek</p>
     </div>
+    <!-- Dashboard Section -->
+<div id="dashboard" class="content-section active">
+    <div class="dashboard-header">
+        <h2>Dashboard SKOPI</h2>
+        <button onclick="refreshDashboard()" class="refresh-btn">
+            <i class="fas fa-sync-alt"></i> Refresh Data
+        </button>
+    </div>
 
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h4 id="total-petugas">15</h4>
+            <p>Total Petugas</p>
+        </div>
+        <div class="stat-card">
+            <h4 id="tingkat-kehadiran">85%</h4>
+            <p>Tingkat Kehadiran</p>
+        </div>
+        <div class="stat-card">
+            <h4 id="luas-layanan">1,250</h4>
+            <p>Luas Layanan (Ha)</p>
+        </div>
+        <div class="stat-card">
+            <h4 id="kinerja-bulanan">92%</h4>
+            <p>Kinerja Bulanan</p>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="card">
+            <h3>Status Operasional Real-time</h3>
+            <ul id="operational-status" style="margin-top: 1rem; padding-left: 2rem;">
+                <li>✅ Pintu Air Utama: Normal</li>
+                <li>✅ Saluran Primer: Berfungsi Baik</li>
+                <li>⚠️ Saluran Sekunder Blok C: Perlu Pembersihan</li>
+                <li>✅ Bangunan Bagi: Normal</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>Data Monitoring</h3>
+            <div id="monitoring-data">
+                <!-- Data monitoring akan diisi oleh JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Grafik Kinerja Mingguan</h3>
+        <div class="chart-container">
+            <canvas id="dashboardChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Ringkasan Sistem</h3>
+        <p>Selamat datang di SKOPI (Sistem Kinerja Operasi dan Pemeliharaan Irigasi) DI. Molek. 
+        Sistem ini membantu dalam monitoring dan evaluasi kinerja operasional jaringan irigasi.</p>
+        
+        <div class="alert-info">
+            <i class="fas fa-info-circle"></i>
+            <span>Data diperbarui secara otomatis setiap 30 detik. Klik tombol refresh untuk pembaruan manual.</span>
+        </div>
+    </div>
+</div>
     <div class="container">
         <div class="sidebar">
             <div class="menu-item active" onclick="showSection('dashboard')">
@@ -798,5 +968,204 @@
         };
 
     </script>
+    <script>
+// Data sampling random untuk dashboard
+const dashboardData = {
+    totalPetugas: 15,
+    tingkatKehadiran: 85,
+    luasLayanan: 1250,
+    kinerjaBuilanan: 92,
+    
+    // Data random untuk grafik dan monitoring
+    generateRandomData: function() {
+        return {
+            kehadiran: Math.floor(Math.random() * 20) + 75, // 75-95%
+            debitAir: (Math.random() * 5 + 15).toFixed(2), // 15-20 m³/s
+            curahHujan: Math.floor(Math.random() * 50), // 0-50mm
+            suhuAir: (Math.random() * 5 + 25).toFixed(1), // 25-30°C
+            kondisiPintuAir: Math.random() > 0.8 ? 'Maintenance' : 'Normal',
+            statusOperasional: Math.random() > 0.9 ? 'Warning' : 'Normal'
+        };
+    },
+    
+    // Data historis untuk grafik
+    generateWeeklyData: function() {
+        const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+        return days.map(day => ({
+            day: day,
+            kehadiran: Math.floor(Math.random() * 20) + 75,
+            kinerja: Math.floor(Math.random() * 25) + 70,
+            pemeliharaan: Math.floor(Math.random() * 10) + 5
+        }));
+    }
+};
+
+// Fungsi untuk update dashboard secara real-time
+function updateDashboard() {
+    const randomData = dashboardData.generateRandomData();
+    
+    // Update stat cards dengan animasi
+    updateStatCard('tingkat-kehadiran', randomData.kehadiran + '%');
+    updateStatCard('kinerja-bulanan', (Math.floor(Math.random() * 15) + 85) + '%');
+    
+    // Update status operasional
+    updateOperationalStatus(randomData);
+    
+    // Update monitoring data
+    updateMonitoringData(randomData);
+    
+    // Update grafik
+    updateDashboardChart();
+}
+
+// Fungsi untuk update stat card dengan animasi
+function updateStatCard(id, value) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.style.transform = 'scale(1.1)';
+        element.textContent = value;
+        setTimeout(() => {
+            element.style.transform = 'scale(1)';
+        }, 200);
+    }
+}
+
+// Fungsi untuk update status operasional
+function updateOperationalStatus(data) {
+    const statusContainer = document.getElementById('operational-status');
+    if (statusContainer) {
+        const statuses = [
+            { name: 'Pintu Air Utama', status: data.kondisiPintuAir },
+            { name: 'Saluran Primer', status: data.statusOperasional },
+            { name: 'Debit Air', value: data.debitAir + ' m³/s' },
+            { name: 'Curah Hujan', value: data.curahHujan + ' mm' }
+        ];
+        
+        let statusHTML = '';
+        statuses.forEach(item => {
+            const icon = item.status === 'Normal' ? '✅' : item.status === 'Warning' ? '⚠️' : '🔧';
+            const statusText = item.status || item.value;
+            statusHTML += `<li>${icon} ${item.name}: ${statusText}</li>`;
+        });
+        
+        statusContainer.innerHTML = statusHTML;
+    }
+}
+
+// Fungsi untuk update data monitoring
+function updateMonitoringData(data) {
+    const monitoringContainer = document.getElementById('monitoring-data');
+    if (monitoringContainer) {
+        monitoringContainer.innerHTML = `
+            <div class="monitoring-grid">
+                <div class="monitoring-item">
+                    <h5>Debit Air</h5>
+                    <span class="monitoring-value">${data.debitAir} m³/s</span>
+                </div>
+                <div class="monitoring-item">
+                    <h5>Curah Hujan</h5>
+                    <span class="monitoring-value">${data.curahHujan} mm</span>
+                </div>
+                <div class="monitoring-item">
+                    <h5>Suhu Air</h5>
+                    <span class="monitoring-value">${data.suhuAir}°C</span>
+                </div>
+                <div class="monitoring-item">
+                    <h5>Status Sistem</h5>
+                    <span class="monitoring-value ${data.statusOperasional.toLowerCase()}">${data.statusOperasional}</span>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Variabel untuk chart
+let dashboardChart;
+
+// Fungsi untuk membuat grafik dashboard
+function createDashboardChart() {
+    const ctx = document.getElementById('dashboardChart');
+    if (ctx) {
+        const weeklyData = dashboardData.generateWeeklyData();
+        
+        dashboardChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: weeklyData.map(d => d.day),
+                datasets: [{
+                    label: 'Tingkat Kehadiran (%)',
+                    data: weeklyData.map(d => d.kehadiran),
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Kinerja Operasional (%)',
+                    data: weeklyData.map(d => d.kinerja),
+                    borderColor: '#27ae60',
+                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Tren Kinerja Mingguan'
+                    }
+                }
+            }
+        });
+    }
+}
+
+// Fungsi untuk update grafik
+function updateDashboardChart() {
+    if (dashboardChart) {
+        const weeklyData = dashboardData.generateWeeklyData();
+        dashboardChart.data.datasets[0].data = weeklyData.map(d => d.kehadiran);
+        dashboardChart.data.datasets[1].data = weeklyData.map(d => d.kinerja);
+        dashboardChart.update();
+    }
+}
+
+// Fungsi untuk refresh data
+function refreshDashboard() {
+    updateDashboard();
+    showNotification('Data dashboard berhasil diperbarui!');
+}
+
+// Fungsi untuk menampilkan notifikasi
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Auto-update setiap 30 detik
+setInterval(updateDashboard, 30000);
+
+// Inisialisasi dashboard saat halaman dimuat
+document.addEventListener('DOMContentLoaded', function() {
+    updateDashboard();
+    createDashboardChart();
+});
+</script>
+
 </body>
 </html>
